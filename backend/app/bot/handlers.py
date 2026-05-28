@@ -21,7 +21,7 @@ from aiogram.types import (
 from app.database import Recipe, Measurement, calculate_extraction, init_db
 
 # URL Mini App (берётся из переменной окружения или Railway URL по умолчанию)
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://coffee-bot-production.up.railway.app")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app")
 
 router = Router()
 session = init_db()

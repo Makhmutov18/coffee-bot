@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://coffee-bot-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://web-production-66155.up.railway.app'
 
 export async function saveRecipe(recipeData) {
   const res = await fetch(`${API_BASE}/api/recipes`, {
