@@ -38,6 +38,9 @@ class Recipe(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Название рецепта
+    name = Column(String(255), nullable=True, comment="Название рецепта")
+
     # Зерно
     roaster = Column(String(255), nullable=True, comment="Обжарщик")
     bean_variety = Column(String(255), nullable=False, comment="Сорт зерна")

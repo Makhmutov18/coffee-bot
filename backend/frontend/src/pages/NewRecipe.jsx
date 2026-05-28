@@ -19,6 +19,7 @@ const DRIPPERS = [
   'Sea to Summit X-Brew',
   'Zebrang V60 Foldable Dripper',
   'Primula Brew Buddy',
+  'Другая...',
 ]
 
 const GRINDERS = [
@@ -84,33 +85,42 @@ const GRINDERS = [
   'MHW-3BOMBER Racing M1',
   'Varia Hand Grinder',
   'Mavo Wizard Coffee Grinder',
+  'Другая...',
 ]
 
 export default function NewRecipe({ onSave, initialData }) {
   const [form, setForm] = useState({
+    name: '',
     roaster: '',
     beanVariety: '',
     beanProcessing: '',
     dose: '',
     dripperType: 'Hario V60',
+    dripperCustom: '',
     grinderModel: '',
+    grinderCustom: '',
     grindSetting: '',
     totalWater: '',
     waterTemp: '',
     waterTds: '',
-    pourSteps: [{ time: '', action: 'bloom' }],
+    pourSteps: [{ time: '', volume: '', action: 'bloom' }],
   })
 
   // Pre-fill form when repeating a recipe
   useEffect(() => {
     if (initialData) {
+      const dripperIsCustom = initialData.dripperType && !DRIPPERS.slice(0, -1).includes(initialData.dripperType)
+      const grinderIsCustom = initialData.grinderModel && !GRINDERS.slice(0, -1).includes(initialData.grinderModel)
       setForm({
+        name: initialData.name || '',
         roaster: initialData.roaster || '',
         beanVariety: initialData.beanVariety || '',
         beanProcessing: initialData.beanProcessing || '',
         dose: initialData.dose?.toString() || '',
-        dripperType: initialData.dripperType || 'Hario V60',
-        grinderModel: initialData.grinderModel || '',
+        dripperType: dripperIsCustom ? 'Другая...' : (initialData.dripperType || 'Hario V60'),
+        dripperCustom: dripperIsCustom ? initialData.dripperType : '',
+        grinderModel: grinderIsCustom ? 'Другая...' : (initialData.grinderModel || ''),
+        grinderCustom: grinderIsCustom ? initialData.grinderModel : '',
         grindSetting: initialData.grindSetting || '',
         totalWater: initialData.totalWater?.toString() || '',
         waterTemp: initialData.waterTemp?.toString() || '',
@@ -118,9 +128,10 @@ export default function NewRecipe({ onSave, initialData }) {
         pourSteps: (initialData.pourSteps && initialData.pourSteps.length > 0)
           ? initialData.pourSteps.map((s) => ({
               time: s.time?.toString() || '',
+              volume: s.volume?.toString() || '',
               action: s.action || 'pour',
             }))
-          : [{ time: '', action: 'bloom' }],
+          : [{ time: '', volume: '', action: 'bloom' }],
       })
     }
   }, [initialData])
@@ -140,7 +151,7 @@ export default function NewRecipe({ onSave, initialData }) {
   const addStep = () => {
     setForm((prev) => ({
       ...prev,
-      pourSteps: [...prev.pourSteps, { time: '', action: 'pour' }],
+      pourSteps: [...prev.pourSteps, { time: '', volume: '', action: 'pour' }],
     }))
   }
 
@@ -149,6 +160,20 @@ export default function NewRecipe({ onSave, initialData }) {
       ...prev,
       pourSteps: prev.pourSteps.filter((_, i) => i !== index),
     }))
+  }
+
+  const getDripperValue = () => {
+    if (form.dripperType === 'Другая...') {
+      return form.dripperCustom || 'Другая'
+    }
+    return form.dripperType
+  }
+
+  const getGrinderValue = () => {
+    if (form.grinderModel === 'Другая...') {
+      return form.grinderCustom || 'Другая'
+    }
+    return form.grinderModel
   }
 
   const handleSubmit = (e) => {
@@ -165,15 +190,20 @@ export default function NewRecipe({ onSave, initialData }) {
         } else {
           totalSeconds = parseInt(t) || 0
         }
-        return { time: totalSeconds, action: s.action }
+        return {
+          time: totalSeconds,
+          volume: s.volume ? parseInt(s.volume) : undefined,
+          action: s.action,
+        }
       })
     onSave({
+      name: form.name || undefined,
       roaster: form.roaster || undefined,
       beanVariety: form.beanVariety,
       beanProcessing: form.beanProcessing || undefined,
       dose: parseFloat(form.dose),
-      dripperType: form.dripperType,
-      grinderModel: form.grinderModel || undefined,
+      dripperType: getDripperValue(),
+      grinderModel: getGrinderValue() || undefined,
       grindSetting: form.grindSetting || undefined,
       totalWater: parseFloat(form.totalWater),
       waterTemp: form.waterTemp ? parseFloat(form.waterTemp) : undefined,
@@ -185,6 +215,18 @@ export default function NewRecipe({ onSave, initialData }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="text-xl font-bold text-coffee-cream">Новый рецепт</h2>
+
+      {/* Название рецепта */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Название рецепта</label>
+        <input
+          type="text"
+          value={form.name}
+          onChange={handleChange('name')}
+          placeholder="Например: Утренний V60"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
 
       {/* Обжарщик */}
       <div>
@@ -250,6 +292,15 @@ export default function NewRecipe({ onSave, initialData }) {
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
+        {form.dripperType === 'Другая...' && (
+          <input
+            type="text"
+            value={form.dripperCustom}
+            onChange={handleChange('dripperCustom')}
+            placeholder="Введите название воронки"
+            className="w-full mt-2 px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+          />
+        )}
       </div>
 
       {/* Кофемолка */}
@@ -265,6 +316,15 @@ export default function NewRecipe({ onSave, initialData }) {
             <option key={g} value={g}>{g}</option>
           ))}
         </select>
+        {form.grinderModel === 'Другая...' && (
+          <input
+            type="text"
+            value={form.grinderCustom}
+            onChange={handleChange('grinderCustom')}
+            placeholder="Введите название кофемолки"
+            className="w-full mt-2 px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+          />
+        )}
       </div>
 
       {/* Помол */}
@@ -330,11 +390,21 @@ export default function NewRecipe({ onSave, initialData }) {
                 type="text"
                 value={step.time}
                 onChange={handleStepChange(i, 'time')}
-                placeholder="сек (45) или мин:сек (1:30)"
+                placeholder="Время: 45 или 1:30"
                 className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
               />
             </div>
-            <div className="w-28">
+            <div className="w-20">
+              <input
+                type="number"
+                value={step.volume}
+                onChange={handleStepChange(i, 'volume')}
+                placeholder="мл"
+                min="1"
+                className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+              />
+            </div>
+            <div className="w-24">
               <select
                 value={step.action}
                 onChange={handleStepChange(i, 'action')}

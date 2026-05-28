@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { getRecipe } from '../api'
+import { getRecipe, deleteRecipe } from '../api'
 
 export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
   const [recipe, setRecipe] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     loadRecipe()
@@ -20,6 +22,18 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
       setError(e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteRecipe(recipeId)
+      onBack()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -63,13 +77,19 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
       <button onClick={onBack} className="text-coffee-gold text-sm mb-2">← Назад к списку</button>
 
       <h2 className="text-xl font-bold text-coffee-cream">
-        {recipe.roaster ? `${recipe.roaster} — ` : ''}{recipe.beanVariety}
+        {recipe.name || (recipe.roaster ? `${recipe.roaster} — ` : '') + recipe.beanVariety}
       </h2>
 
       <div className="text-coffee-latte text-xs">{formatDate(recipe.createdAt)}</div>
 
       {/* Параметры */}
       <div className="bg-coffee-dark rounded-lg p-4 space-y-2 text-sm">
+        {recipe.name && (
+          <div className="flex justify-between">
+            <span className="text-coffee-latte">Название:</span>
+            <span className="text-coffee-cream">{recipe.name}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-coffee-latte">Сорт:</span>
           <span className="text-coffee-cream">{recipe.beanVariety}</span>
@@ -134,7 +154,10 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
                 <span className="text-coffee-latte">
                   {step.action === 'bloom' ? 'Блум' : 'Вливание'}
                 </span>
-                <span className="text-coffee-cream">{formatTime(step.time)}</span>
+                <span className="text-coffee-cream">
+                  {formatTime(step.time)}
+                  {step.volume ? ` · ${step.volume} мл` : ''}
+                </span>
               </div>
             ))}
           </div>
@@ -215,13 +238,39 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
         </div>
       )}
 
-      {/* Кнопка повтора */}
-      <button
-        onClick={() => onRepeat(recipe)}
-        className="w-full py-3 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
-      >
-        Повторить этот рецепт
-      </button>
+      {/* Кнопки */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => onRepeat(recipe)}
+          className="flex-1 py-3 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+        >
+          Повторить
+        </button>
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="px-4 py-3 rounded-lg border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
+          >
+            Удалить
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="px-3 py-3 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition text-sm"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-3 py-3 rounded-lg bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
+            >
+              {deleting ? '...' : '✓ Удалить'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

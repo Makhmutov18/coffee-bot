@@ -31,6 +31,17 @@ export async function getRecipe(id) {
   return res.json()
 }
 
+export async function deleteRecipe(id) {
+  const res = await fetch(`${API_BASE}/api/recipes/${id}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Ошибка удаления')
+  }
+  return res.json()
+}
+
 export async function calculateExtraction(data) {
   const res = await fetch(`${API_BASE}/api/calculate`, {
     method: 'POST',

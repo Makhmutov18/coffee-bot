@@ -89,7 +89,7 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe }) {
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0">
                   <div className="text-coffee-cream font-medium truncate">
-                    {r.roaster ? `${r.roaster} — ` : ''}{r.beanVariety}
+                    {r.name ? r.name : (r.roaster ? `${r.roaster} — ` : '') + r.beanVariety}
                   </div>
                   <div className="text-coffee-latte text-xs mt-1">
                     {r.dripperType} · {r.dose}г · {r.totalWater}мл

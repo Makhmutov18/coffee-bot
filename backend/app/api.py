@@ -23,6 +23,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
 
     try:
         recipe = Recipe(
+            name=data.get("name"),
             roaster=data.get("roaster"),
             bean_variety=data.get("beanVariety", ""),
             bean_processing=data.get("beanProcessing"),
@@ -87,6 +88,7 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
             result.append({
                 "id": r.id,
                 "createdAt": r.created_at.isoformat() if r.created_at else None,
+                "name": r.name,
                 "roaster": r.roaster,
                 "beanVariety": r.bean_variety,
                 "beanProcessing": r.bean_processing,
@@ -130,6 +132,7 @@ async def handle_get_recipe(request: web.Request) -> web.Response:
         return web.json_response({
             "id": r.id,
             "createdAt": r.created_at.isoformat() if r.created_at else None,
+            "name": r.name,
             "roaster": r.roaster,
             "beanVariety": r.bean_variety,
             "beanProcessing": r.bean_processing,
@@ -146,6 +149,27 @@ async def handle_get_recipe(request: web.Request) -> web.Response:
         })
     except Exception as e:
         logger.error("Error getting recipe: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
+
+async def handle_delete_recipe(request: web.Request) -> web.Response:
+    """Удалить рецепт по ID."""
+    recipe_id = request.match_info.get("id")
+    session = init_db()
+    try:
+        r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not r:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        session.delete(r)
+        session.commit()
+
+        return web.json_response({"message": "Рецепт удалён"})
+    except Exception as e:
+        session.rollback()
+        logger.error("Error deleting recipe: %s", e)
         return web.json_response({"error": str(e)}, status=500)
     finally:
         session.close()
@@ -181,5 +205,6 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_post("/api/recipes", handle_save_recipe)
     app.router.add_get("/api/recipes", handle_list_recipes)
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
+    app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
-    logger.info("API routes registered: POST /api/recipes, GET /api/recipes, GET /api/recipes/{id}, POST /api/calculate")
+    logger.info("API routes registered: POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, POST /api/calculate")
