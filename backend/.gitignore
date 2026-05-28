@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+.env
+data/
+test_coffee.db
+*.db
+.DS_Store
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/

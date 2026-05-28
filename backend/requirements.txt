@@ -1,0 +1,6 @@
+# Backend
+aiogram==3.17.0
+sqlalchemy==2.0.36
+python-dotenv==1.0.1
+psycopg2-binary==2.9.10
+aiohttp==3.11.12

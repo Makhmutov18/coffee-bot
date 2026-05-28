@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.env
+.git
+.gitignore
+data/
+test_coffee.db
+README.md
+
+# Frontend — не копируем node_modules и dist с хоста, устанавливаем внутри контейнера
+backend/frontend/node_modules/
+backend/frontend/dist/
