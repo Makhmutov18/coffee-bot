@@ -1,5 +1,15 @@
 import React, { useState } from 'react'
-import { saveRecipe, calculateExtraction } from '../api'
+import { calculateExtraction, saveRecipe } from '../api'
+
+const TASTING_FIELDS = [
+  { key: 'aroma', label: 'Аромат (Fragrance / Aroma)', placeholder: 'Фруктовые, цветочные, ореховые ноты...' },
+  { key: 'flavor', label: 'Вкус (Flavor)', placeholder: 'Базовое вкусовое ощущение...' },
+  { key: 'aftertaste', label: 'Послевкусие (Aftertaste)', placeholder: 'Короткое, долгое, сладковатое...' },
+  { key: 'acidity', label: 'Кислотность (Acidity)', placeholder: 'Винная, яблочная, лимонная...' },
+  { key: 'body', label: 'Тело (Body)', placeholder: 'Водянистое, лёгкое, сиропное, маслянистое...' },
+  { key: 'balance', label: 'Баланс (Balance)', placeholder: 'Насколько гармонично...' },
+  { key: 'cleanCup', label: 'Чистота чашки (Clean Cup)', placeholder: 'Отсутствие дефектов...' },
+]
 
 export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe }) {
   const [beverageWeight, setBeverageWeight] = useState('')
@@ -8,144 +18,176 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
+  const [tastingNotes, setTastingNotes] = useState(
+    Object.fromEntries(TASTING_FIELDS.map((f) => [f.key, '']))
+  )
 
   const handleCalculate = async () => {
-    if (!beverageWeight || !tds) return
-
     setError(null)
-    setSaving(true)
-
     try {
-      // Calculate extraction locally first
-      const bw = Number(beverageWeight)
-      const tdsVal = Number(tds)
-      const dose = recipe.dose
-      const ext = ((bw * tdsVal) / dose).toFixed(2)
-      setExtraction(ext)
+      const result = await calculateExtraction({
+        beverageWeight: parseFloat(beverageWeight),
+        tds: parseFloat(tds),
+        dose: recipe.dose,
+      })
+      setExtraction(result.extraction)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
 
-      // Save to backend
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const tastingData = {}
+      for (const [key, val] of Object.entries(tastingNotes)) {
+        if (val.trim()) tastingData[key] = val.trim()
+      }
+
       await saveRecipe({
         ...recipe,
-        beverageWeight: bw,
-        tds: tdsVal,
-        extraction: Number(ext),
-        brewTime: brewResults?.brewTime || 0,
+        beverageWeight: parseFloat(beverageWeight),
+        tds: parseFloat(tds),
+        extraction: extraction,
+        tastingNotes: Object.keys(tastingData).length > 0 ? tastingData : undefined,
       })
-
       setSaved(true)
-    } catch (err) {
-      setError('Ошибка при сохранении. Попробуй ещё раз.')
+    } catch (e) {
+      setError(e.message)
     } finally {
       setSaving(false)
     }
   }
 
   const handleClose = () => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.close()
-    }
+    onNewRecipe()
+  }
+
+  const handleTastingChange = (key) => (e) => {
+    setTastingNotes((prev) => ({ ...prev, [key]: e.target.value }))
+  }
+
+  if (saved) {
+    return (
+      <div className="text-center space-y-4">
+        <div className="text-6xl">✅</div>
+        <h2 className="text-xl font-bold text-coffee-cream">Рецепт сохранён!</h2>
+        <button
+          onClick={handleClose}
+          className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+        >
+          Новый рецепт
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-coffee-200">Итоги заваривания</h2>
+      <h2 className="text-xl font-bold text-coffee-cream">Итоги заваривания</h2>
 
-      {/* Recipe Summary */}
-      {recipe && (
-        <div className="bg-coffee-900 rounded-xl p-4 border border-coffee-700 space-y-1">
-          <div className="text-sm text-coffee-400">{recipe.beanVariety}</div>
-          <div className="text-sm text-coffee-500">
-            {recipe.dose}г / {recipe.totalWater}мл / {recipe.dripperType}
-          </div>
-          {brewResults && (
-            <div className="text-sm text-coffee-500">
-              Время: {Math.floor(brewResults.brewTime / 60)}:{(brewResults.brewTime % 60).toString().padStart(2, '0')}
-            </div>
-          )}
+      {/* Параметры заваривания */}
+      <div className="bg-coffee-dark rounded-lg p-4 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-coffee-latte">Сорт:</span>
+          <span className="text-coffee-cream font-medium">{recipe.beanVariety}</span>
         </div>
-      )}
+        {recipe.roaster && (
+          <div className="flex justify-between">
+            <span className="text-coffee-latte">Обжарщик:</span>
+            <span className="text-coffee-cream font-medium">{recipe.roaster}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-coffee-latte">Доза:</span>
+          <span className="text-coffee-cream font-medium">{recipe.dose} г</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-coffee-latte">Воронка:</span>
+          <span className="text-coffee-cream font-medium">{recipe.dripperType}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-coffee-latte">Вода:</span>
+          <span className="text-coffee-cream font-medium">{recipe.totalWater} мл</span>
+        </div>
+      </div>
 
-      {/* Input Fields */}
-      {!saved && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-coffee-400 mb-1">
-              Вес готового напитка (г)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              value={beverageWeight}
-              onChange={(e) => setBeverageWeight(e.target.value)}
-              placeholder="Например: 210"
+      {/* Замеры */}
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-coffee-cream">Замеры</h3>
+        <div>
+          <label className="block text-sm text-coffee-latte mb-1">Вес напитка (г)</label>
+          <input
+            type="number"
+            step="0.1"
+            value={beverageWeight}
+            onChange={(e) => setBeverageWeight(e.target.value)}
+            placeholder="210"
+            className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-coffee-latte mb-1">TDS (%)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={tds}
+            onChange={(e) => setTds(e.target.value)}
+            placeholder="1.35"
+            className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+          />
+        </div>
+        <button
+          onClick={handleCalculate}
+          disabled={!beverageWeight || !tds}
+          className="w-full py-2 rounded-lg bg-coffee-brown text-coffee-cream font-medium hover:bg-coffee-gold hover:text-coffee-dark transition disabled:opacity-50"
+        >
+          Рассчитать экстракцию
+        </button>
+        {extraction !== null && (
+          <div className="text-center p-3 rounded-lg bg-coffee-gold/20 border border-coffee-gold">
+            <span className="text-coffee-latte text-sm">Экстракция:</span>
+            <span className="text-coffee-gold text-2xl font-bold ml-2">{extraction}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Дегустационный профиль */}
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-coffee-cream">Дегустационный профиль</h3>
+        {TASTING_FIELDS.map((field) => (
+          <div key={field.key}>
+            <label className="block text-sm text-coffee-latte mb-1">{field.label}</label>
+            <textarea
+              value={tastingNotes[field.key]}
+              onChange={handleTastingChange(field.key)}
+              placeholder={field.placeholder}
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm resize-none"
             />
           </div>
+        ))}
+      </div>
 
-          <div>
-            <label className="block text-sm text-coffee-400 mb-1">
-              TDS (%)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={tds}
-              onChange={(e) => setTds(e.target.value)}
-              placeholder="Например: 1.35"
-            />
-          </div>
-
-          {error && (
-            <div className="text-red-400 text-sm text-center">{error}</div>
-          )}
-
-          <button
-            onClick={handleCalculate}
-            disabled={!beverageWeight || !tds || saving}
-            className="w-full py-3 bg-coffee-600 text-coffee-100 rounded-xl font-medium
-              hover:bg-coffee-500 transition-colors disabled:opacity-40"
-          >
-            {saving ? 'Сохранение...' : 'Рассчитать и сохранить'}
-          </button>
-        </div>
+      {error && (
+        <div className="text-red-400 text-sm text-center">{error}</div>
       )}
 
-      {/* Result */}
-      {extraction && (
-        <div className="bg-coffee-900 rounded-xl p-6 border border-coffee-600 text-center">
-          <div className="text-sm text-coffee-400 mb-2">Экстракция</div>
-          <div className="text-4xl font-bold text-coffee-100">
-            {extraction}%
-          </div>
-          <div className="text-sm text-coffee-500 mt-2">
-            Вес напитка: {beverageWeight}г · TDS: {tds}%
-          </div>
-          <div className="text-xs text-coffee-600 mt-1">
-            Golden Cup: (Вес × TDS) / Доза
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="space-y-2">
+      {/* Кнопки */}
+      <div className="flex gap-3">
         <button
           onClick={onNewBrew}
-          className="w-full py-3 bg-coffee-700 text-coffee-200 rounded-xl font-medium
-            hover:bg-coffee-600 transition-colors"
+          className="flex-1 py-2 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition"
         >
-          Повторить заваривание
+          Заново
         </button>
         <button
-          onClick={onNewRecipe}
-          className="w-full py-3 bg-coffee-800 text-coffee-400 rounded-xl
-            hover:bg-coffee-700 transition-colors"
+          onClick={handleSave}
+          disabled={saving || !beverageWeight || !tds}
+          className="flex-1 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition disabled:opacity-50"
         >
-          Новый рецепт
-        </button>
-        <button
-          onClick={handleClose}
-          className="w-full py-2 text-sm text-coffee-500 hover:text-coffee-400 transition-colors"
-        >
-          Закрыть
+          {saving ? 'Сохранение...' : 'Сохранить'}
         </button>
       </div>
     </div>

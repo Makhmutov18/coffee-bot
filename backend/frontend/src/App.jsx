@@ -2,17 +2,22 @@ import React, { useState, useEffect, useCallback } from 'react'
 import NewRecipe from './pages/NewRecipe'
 import BrewTimer from './pages/BrewTimer'
 import Results from './pages/Results'
+import RecipeList from './pages/RecipeList'
+import RecipeDetail from './pages/RecipeDetail'
 
 const TABS = [
   { key: 'recipe', label: 'Рецепт', icon: '📝' },
   { key: 'brew', label: 'Заваривание', icon: '⏱️' },
   { key: 'results', label: 'Итоги', icon: '📊' },
+  { key: 'recipes', label: 'Мои рецепты', icon: '📋' },
 ]
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('recipe')
   const [recipe, setRecipe] = useState(null)
   const [brewResults, setBrewResults] = useState(null)
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null)
+  const [repeatRecipe, setRepeatRecipe] = useState(null)
 
   // Telegram WebApp integration
   useEffect(() => {
@@ -41,6 +46,39 @@ export default function App() {
   const handleNewRecipe = useCallback(() => {
     setRecipe(null)
     setBrewResults(null)
+    setRepeatRecipe(null)
+    setSelectedRecipeId(null)
+    setActiveTab('recipe')
+  }, [])
+
+  const handleSelectRecipe = useCallback((r) => {
+    setSelectedRecipeId(r.id)
+  }, [])
+
+  const handleBackToList = useCallback(() => {
+    setSelectedRecipeId(null)
+  }, [])
+
+  const handleRepeatRecipe = useCallback((r) => {
+    // Pre-fill the form with the selected recipe data
+    const prefill = {
+      roaster: r.roaster || '',
+      beanVariety: r.beanVariety,
+      beanProcessing: r.beanProcessing || '',
+      dose: r.dose,
+      dripperType: r.dripperType,
+      grinderModel: r.grinderModel || '',
+      grindSetting: r.grindSetting || '',
+      totalWater: r.totalWater,
+      waterTemp: r.waterTemp || '',
+      waterTds: r.waterTds || '',
+      pourSteps: (r.pourSteps || []).map((s) => ({
+        time: s.time,
+        action: s.action,
+      })),
+    }
+    setRepeatRecipe(prefill)
+    setSelectedRecipeId(null)
     setActiveTab('recipe')
   }, [])
 
@@ -56,7 +94,11 @@ export default function App() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === 'recipe' && (
-          <NewRecipe onSave={handleRecipeSave} />
+          <NewRecipe
+            key={repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
+            onSave={handleRecipeSave}
+            initialData={repeatRecipe}
+          />
         )}
         {activeTab === 'brew' && (
           <BrewTimer
@@ -71,6 +113,19 @@ export default function App() {
             brewResults={brewResults}
             onNewBrew={handleNewBrew}
             onNewRecipe={handleNewRecipe}
+          />
+        )}
+        {activeTab === 'recipes' && !selectedRecipeId && (
+          <RecipeList
+            onSelectRecipe={handleSelectRecipe}
+            onNewRecipe={handleNewRecipe}
+          />
+        )}
+        {activeTab === 'recipes' && selectedRecipeId && (
+          <RecipeDetail
+            recipeId={selectedRecipeId}
+            onBack={handleBackToList}
+            onRepeat={handleRepeatRecipe}
           />
         )}
       </main>

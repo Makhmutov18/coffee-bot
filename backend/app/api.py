@@ -23,6 +23,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
 
     try:
         recipe = Recipe(
+            roaster=data.get("roaster"),
             bean_variety=data.get("beanVariety", ""),
             bean_processing=data.get("beanProcessing"),
             dose=float(data.get("dose", 0)),
@@ -33,6 +34,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
             water_temp=float(data["waterTemp"]) if data.get("waterTemp") else None,
             water_tds=float(data["waterTds"]) if data.get("waterTds") else None,
             pour_steps=data.get("pourSteps", []),
+            tasting_notes=data.get("tastingNotes"),
         )
         session.add(recipe)
         session.flush()
@@ -66,6 +68,89 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
         session.close()
 
 
+async def handle_list_recipes(request: web.Request) -> web.Response:
+    """Получить список всех рецептов."""
+    session = init_db()
+    try:
+        recipes = session.query(Recipe).order_by(Recipe.created_at.desc()).all()
+        result = []
+        for r in recipes:
+            # Берём последний замер, если есть
+            last_measurement = None
+            if r.measurements:
+                m = r.measurements[-1]
+                last_measurement = {
+                    "beverageWeight": m.beverage_weight,
+                    "tds": m.tds,
+                    "extraction": m.extraction,
+                }
+            result.append({
+                "id": r.id,
+                "createdAt": r.created_at.isoformat() if r.created_at else None,
+                "roaster": r.roaster,
+                "beanVariety": r.bean_variety,
+                "beanProcessing": r.bean_processing,
+                "dose": r.dose,
+                "dripperType": r.dripper_type,
+                "grinderModel": r.grinder_model,
+                "grindSetting": r.grind_setting,
+                "totalWater": r.total_water,
+                "waterTemp": r.water_temp,
+                "waterTds": r.water_tds,
+                "pourSteps": r.pour_steps,
+                "tastingNotes": r.tasting_notes,
+                "lastMeasurement": last_measurement,
+            })
+        return web.json_response(result)
+    except Exception as e:
+        logger.error("Error listing recipes: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
+
+async def handle_get_recipe(request: web.Request) -> web.Response:
+    """Получить рецепт по ID."""
+    recipe_id = request.match_info.get("id")
+    session = init_db()
+    try:
+        r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not r:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        measurements = []
+        for m in r.measurements:
+            measurements.append({
+                "id": m.id,
+                "beverageWeight": m.beverage_weight,
+                "tds": m.tds,
+                "extraction": m.extraction,
+            })
+
+        return web.json_response({
+            "id": r.id,
+            "createdAt": r.created_at.isoformat() if r.created_at else None,
+            "roaster": r.roaster,
+            "beanVariety": r.bean_variety,
+            "beanProcessing": r.bean_processing,
+            "dose": r.dose,
+            "dripperType": r.dripper_type,
+            "grinderModel": r.grinder_model,
+            "grindSetting": r.grind_setting,
+            "totalWater": r.total_water,
+            "waterTemp": r.water_temp,
+            "waterTds": r.water_tds,
+            "pourSteps": r.pour_steps,
+            "tastingNotes": r.tasting_notes,
+            "measurements": measurements,
+        })
+    except Exception as e:
+        logger.error("Error getting recipe: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
+
 async def handle_calculate(request: web.Request) -> web.Response:
     """Рассчитать экстракцию по формуле Golden Cup."""
     try:
@@ -94,5 +179,7 @@ async def handle_calculate(request: web.Request) -> web.Response:
 def setup_api_routes(app: web.Application) -> None:
     """Подключить API-маршруты к aiohttp приложению."""
     app.router.add_post("/api/recipes", handle_save_recipe)
+    app.router.add_get("/api/recipes", handle_list_recipes)
+    app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
-    logger.info("API routes registered: POST /api/recipes, POST /api/calculate")
+    logger.info("API routes registered: POST /api/recipes, GET /api/recipes, GET /api/recipes/{id}, POST /api/calculate")

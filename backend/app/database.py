@@ -39,6 +39,7 @@ class Recipe(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Зерно
+    roaster = Column(String(255), nullable=True, comment="Обжарщик")
     bean_variety = Column(String(255), nullable=False, comment="Сорт зерна")
     bean_processing = Column(String(128), nullable=True, comment="Обработка (мытая / натуральная / хани / анэробная и т.д.)")
     dose = Column(Float, nullable=False, comment="Вес сухого зерна, г")
@@ -55,6 +56,9 @@ class Recipe(Base):
 
     # Шаги вливаний (JSON-массив)
     _pour_steps = Column("pour_steps", String, nullable=True, comment="Массив шагов вливаний в JSON")
+
+    # Дегустационный профиль (JSON)
+    _tasting_notes = Column("tasting_notes", String, nullable=True, comment="Дегустационный профиль в JSON")
 
     # Связь с замерами
     measurements = relationship("Measurement", back_populates="recipe", cascade="all, delete-orphan")
@@ -73,6 +77,21 @@ class Recipe(Base):
             self._pour_steps = None
         else:
             self._pour_steps = json.dumps(value, ensure_ascii=False)
+
+    @property
+    def tasting_notes(self) -> Optional[dict]:
+        """Десериализовать tasting_notes из JSON."""
+        if self._tasting_notes is None:
+            return None
+        return json.loads(self._tasting_notes)
+
+    @tasting_notes.setter
+    def tasting_notes(self, value: Optional[dict]) -> None:
+        """Сериализовать tasting_notes в JSON."""
+        if value is None:
+            self._tasting_notes = None
+        else:
+            self._tasting_notes = json.dumps(value, ensure_ascii=False)
 
     def __repr__(self) -> str:
         return (

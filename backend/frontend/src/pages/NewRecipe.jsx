@@ -1,45 +1,150 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 const DRIPPERS = [
-  { value: 'V60', label: 'Hario V60' },
-  { value: 'Switch', label: 'Hario Switch' },
+  'Hario V60',
+  'Kalita Wave',
+  'Chemex',
+  'Origami',
+  'Orea',
+  'NextLevel Pulsar',
+  'Hario Switch',
+  'Cafec Flower Deep 27',
+  'Timemore B75',
+  'Sworks Dripper',
+  'Gabi Dripper',
+  'Torch Mountain',
+  'Kono',
+  'Melitta',
+  'GSI Outdoors Collapsible JavaDrip',
+  'Sea to Summit X-Brew',
+  'Zebrang V60 Foldable Dripper',
+  'Primula Brew Buddy',
 ]
 
-const INITIAL_STEP = { time: '', volume: '', action: 'Вливание' }
+const GRINDERS = [
+  'Mahlkönig Tanzania',
+  'Mahlkönig EK43 (turkish)',
+  'Mahlkönig EK43 (coffee)',
+  'Mazzer ZM',
+  'Comandante (Red clix)',
+  'Feldgrind 2',
+  'Kinu m47 phoenix',
+  'Timemore Slim',
+  'Timemore Nano',
+  'Timemore Chestnut G1 Plus',
+  'Timemore Chestnut C2',
+  'Ditting',
+  'Baratza Encore',
+  'Baratza Virtuoso+',
+  'Baratza Sette 30',
+  'Baratza Forte',
+  'Fellow Ode',
+  '1Zpresso JX',
+  '1Zpresso JE',
+  'Wilfa Svart Nymalt',
+  'Wilfa Svart Uniform',
+  'Niche Zero',
+  'Eureka Atom Pro',
+  'Eureka Drogheria',
+  'Eureka Mignon Brew Pro',
+  'Eureka Mignon 50mm Filtro Pro',
+  'Eureka Mignon 50mm Filtro Pro NEW',
+  'Feld47',
+  'Ditting 807 LAB SWEET',
+  'Fiorenzato F4 Filter',
+  'Omni Cup',
+  'XEOLEO',
+  '1Zpresso K-Plus',
+  'Mahlkönig (другая)',
+  'Timemore Grinder Go',
+  'Saint Anthony',
+  'DF64',
+  'KINGrinder K4',
+  'KINGrinder K2-AR',
+  '1Zpresso Q2',
+  'Timemore Chestnut C3',
+  'Comandante C40',
+  'Hario Coffee Grinder',
+  'Anfim Drogheria',
+  'Varia VS3',
+  'Lagom P64',
+  'KINGrinder K6',
+  'Hero',
+  'Timemore Chestnut X lite',
+  'Ditting для дрипов',
+  'Китайская копия EK-43',
+  'PIETRO',
+  'Mahlkönig EK43 ICON (coffee)',
+  'EUREKA MIGNON CRONO',
+  'Mischef Electric Mini',
+  'MHW-3BOMBER Blade R3',
+  'Fellow Opus',
+  'DF83V',
+  'Chestnut C3 ESP',
+  'MHW-3BOMBER Racing M1',
+  'Varia Hand Grinder',
+  'Mavo Wizard Coffee Grinder',
+]
 
-export default function NewRecipe({ onSave }) {
+export default function NewRecipe({ onSave, initialData }) {
   const [form, setForm] = useState({
+    roaster: '',
     beanVariety: '',
     beanProcessing: '',
     dose: '',
-    dripperType: 'V60',
+    dripperType: 'Hario V60',
     grinderModel: '',
     grindSetting: '',
     totalWater: '',
     waterTemp: '',
     waterTds: '',
-    pourSteps: [{ ...INITIAL_STEP }],
+    pourSteps: [{ time: '', action: 'bloom' }],
   })
+
+  // Pre-fill form when repeating a recipe
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        roaster: initialData.roaster || '',
+        beanVariety: initialData.beanVariety || '',
+        beanProcessing: initialData.beanProcessing || '',
+        dose: initialData.dose?.toString() || '',
+        dripperType: initialData.dripperType || 'Hario V60',
+        grinderModel: initialData.grinderModel || '',
+        grindSetting: initialData.grindSetting || '',
+        totalWater: initialData.totalWater?.toString() || '',
+        waterTemp: initialData.waterTemp?.toString() || '',
+        waterTds: initialData.waterTds?.toString() || '',
+        pourSteps: (initialData.pourSteps && initialData.pourSteps.length > 0)
+          ? initialData.pourSteps.map((s) => ({
+              time: s.time?.toString() || '',
+              action: s.action || 'pour',
+            }))
+          : [{ time: '', action: 'bloom' }],
+      })
+    }
+  }, [initialData])
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
   }
 
   const handleStepChange = (index, field) => (e) => {
-    const steps = [...form.pourSteps]
-    steps[index] = { ...steps[index], [field]: e.target.value }
-    setForm((prev) => ({ ...prev, pourSteps: steps }))
+    setForm((prev) => {
+      const steps = [...prev.pourSteps]
+      steps[index] = { ...steps[index], [field]: e.target.value }
+      return { ...prev, pourSteps: steps }
+    })
   }
 
   const addStep = () => {
     setForm((prev) => ({
       ...prev,
-      pourSteps: [...prev.pourSteps, { ...INITIAL_STEP }],
+      pourSteps: [...prev.pourSteps, { time: '', action: 'pour' }],
     }))
   }
 
   const removeStep = (index) => {
-    if (form.pourSteps.length <= 1) return
     setForm((prev) => ({
       ...prev,
       pourSteps: prev.pourSteps.filter((_, i) => i !== index),
@@ -48,203 +153,222 @@ export default function NewRecipe({ onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // Преобразуем время шагов: "45" → 45 (сек), "1:30" → 90 (сек)
     const steps = form.pourSteps
-      .filter((s) => s.time && s.volume)
-      .map((s) => ({
-        time: Number(s.time),
-        volume: Number(s.volume),
-        action: s.action,
-      }))
-
+      .filter((s) => s.time !== '')
+      .map((s) => {
+        let totalSeconds = 0
+        const t = s.time.trim()
+        if (t.includes(':')) {
+          const parts = t.split(':')
+          totalSeconds = parseInt(parts[0] || 0) * 60 + parseInt(parts[1] || 0)
+        } else {
+          totalSeconds = parseInt(t) || 0
+        }
+        return { time: totalSeconds, action: s.action }
+      })
     onSave({
-      ...form,
-      dose: Number(form.dose),
-      totalWater: Number(form.totalWater),
-      waterTemp: form.waterTemp ? Number(form.waterTemp) : null,
-      waterTds: form.waterTds ? Number(form.waterTds) : null,
+      roaster: form.roaster || undefined,
+      beanVariety: form.beanVariety,
+      beanProcessing: form.beanProcessing || undefined,
+      dose: parseFloat(form.dose),
+      dripperType: form.dripperType,
+      grinderModel: form.grinderModel || undefined,
+      grindSetting: form.grindSetting || undefined,
+      totalWater: parseFloat(form.totalWater),
+      waterTemp: form.waterTemp ? parseFloat(form.waterTemp) : undefined,
+      waterTds: form.waterTds ? parseFloat(form.waterTds) : undefined,
       pourSteps: steps,
     })
   }
 
-  const isValid =
-    form.beanVariety && form.dose && form.totalWater
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-lg font-semibold text-coffee-200 mb-4">
-        Новый рецепт
-      </h2>
+      <h2 className="text-xl font-bold text-coffee-cream">Новый рецепт</h2>
+
+      {/* Обжарщик */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Обжарщик</label>
+        <input
+          type="text"
+          value={form.roaster}
+          onChange={handleChange('roaster')}
+          placeholder="Название обжарщика"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
 
       {/* Сорт зерна */}
       <div>
-        <label className="block text-sm text-coffee-400 mb-1">Сорт зерна *</label>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Сорт зерна *</label>
         <input
           type="text"
           value={form.beanVariety}
           onChange={handleChange('beanVariety')}
-          placeholder="Например: Ethiopia Yirgacheffe"
+          placeholder="Ethiopia Yirgacheffe"
+          required
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
         />
       </div>
 
       {/* Обработка */}
       <div>
-        <label className="block text-sm text-coffee-400 mb-1">Обработка</label>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Обработка</label>
         <input
           type="text"
           value={form.beanProcessing}
           onChange={handleChange('beanProcessing')}
-          placeholder="Мытая / натуральная / хани"
+          placeholder="мытая / натуральная / хани"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
         />
       </div>
 
-      {/* Вес кофе и тип воронки */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">Вес кофе (г) *</label>
-          <input
-            type="number"
-            step="0.1"
-            value={form.dose}
-            onChange={handleChange('dose')}
-            placeholder="15"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">Воронка *</label>
-          <select value={form.dripperType} onChange={handleChange('dripperType')}>
-            {DRIPPERS.map((d) => (
-              <option key={d.value} value={d.value}>{d.label}</option>
-            ))}
-          </select>
-        </div>
+      {/* Доза */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Доза (г) *</label>
+        <input
+          type="number"
+          step="0.1"
+          min="1"
+          value={form.dose}
+          onChange={handleChange('dose')}
+          placeholder="15"
+          required
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
+
+      {/* Воронка */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Воронка *</label>
+        <select
+          value={form.dripperType}
+          onChange={handleChange('dripperType')}
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        >
+          {DRIPPERS.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
       </div>
 
       {/* Кофемолка */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">Кофемолка</label>
-          <input
-            type="text"
-            value={form.grinderModel}
-            onChange={handleChange('grinderModel')}
-            placeholder="Comandante C40"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">Помол</label>
-          <input
-            type="text"
-            value={form.grindSetting}
-            onChange={handleChange('grindSetting')}
-            placeholder="22 клика"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Кофемолка</label>
+        <select
+          value={form.grinderModel}
+          onChange={handleChange('grinderModel')}
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        >
+          <option value="">— выберите —</option>
+          {GRINDERS.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Вода */}
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">Вода (мл) *</label>
-          <input
-            type="number"
-            step="1"
-            value={form.totalWater}
-            onChange={handleChange('totalWater')}
-            placeholder="250"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">T°C</label>
-          <input
-            type="number"
-            step="0.5"
-            value={form.waterTemp}
-            onChange={handleChange('waterTemp')}
-            placeholder="92"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-coffee-400 mb-1">PPM</label>
-          <input
-            type="number"
-            step="1"
-            value={form.waterTds}
-            onChange={handleChange('waterTds')}
-            placeholder="50"
-          />
-        </div>
+      {/* Помол */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Помол (клик / номер)</label>
+        <input
+          type="text"
+          value={form.grindSetting}
+          onChange={handleChange('grindSetting')}
+          placeholder="22 клика"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
+
+      {/* Общая вода */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Общий объём воды (мл) *</label>
+        <input
+          type="number"
+          step="1"
+          min="1"
+          value={form.totalWater}
+          onChange={handleChange('totalWater')}
+          placeholder="250"
+          required
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
+
+      {/* Температура воды */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Температура воды (°C)</label>
+        <input
+          type="number"
+          step="0.5"
+          value={form.waterTemp}
+          onChange={handleChange('waterTemp')}
+          placeholder="92"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
+      </div>
+
+      {/* TDS воды */}
+      <div>
+        <label className="block text-sm font-medium text-coffee-latte mb-1">Минерализация воды (ppm)</label>
+        <input
+          type="number"
+          step="1"
+          value={form.waterTds}
+          onChange={handleChange('waterTds')}
+          placeholder="50"
+          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+        />
       </div>
 
       {/* Шаги пролива */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm text-coffee-400">Шаги пролива</label>
-          <button
-            type="button"
-            onClick={addStep}
-            className="text-xs px-3 py-1 bg-coffee-700 text-coffee-200 rounded-full hover:bg-coffee-600 transition-colors"
-          >
-            + Добавить шаг
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {form.pourSteps.map((step, i) => (
-            <div key={i} className="flex gap-2 items-end bg-coffee-900 p-2 rounded-lg">
-              <div className="flex-1">
-                <label className="block text-xs text-coffee-500 mb-0.5">Время (с)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={step.time}
-                  onChange={handleStepChange(i, 'time')}
-                  placeholder="0"
-                  className="text-sm"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs text-coffee-500 mb-0.5">Объём (мл)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={step.volume}
-                  onChange={handleStepChange(i, 'volume')}
-                  placeholder="50"
-                  className="text-sm"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs text-coffee-500 mb-0.5">Действие</label>
-                <input
-                  type="text"
-                  value={step.action}
-                  onChange={handleStepChange(i, 'action')}
-                  placeholder="Bloom"
-                  className="text-sm"
-                />
-              </div>
-              {form.pourSteps.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeStep(i)}
-                  className="text-coffee-500 hover:text-red-400 text-lg pb-1"
-                >
-                  ✕
-                </button>
-              )}
+        <label className="block text-sm font-medium text-coffee-latte mb-2">Шаги пролива</label>
+        {form.pourSteps.map((step, i) => (
+          <div key={i} className="flex gap-2 mb-2 items-end">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={step.time}
+                onChange={handleStepChange(i, 'time')}
+                placeholder="сек (45) или мин:сек (1:30)"
+                className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+              />
             </div>
-          ))}
-        </div>
+            <div className="w-28">
+              <select
+                value={step.action}
+                onChange={handleStepChange(i, 'action')}
+                className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+              >
+                <option value="bloom">Блум</option>
+                <option value="pour">Вливание</option>
+              </select>
+            </div>
+            {form.pourSteps.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeStep(i)}
+                className="px-2 py-2 text-red-400 hover:text-red-300 text-lg"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addStep}
+          className="text-coffee-gold hover:text-yellow-400 text-sm"
+        >
+          + Добавить шаг
+        </button>
       </div>
 
-      {/* Submit */}
       <button
         type="submit"
-        disabled={!isValid}
-        className="w-full py-3 bg-coffee-600 text-coffee-100 rounded-xl font-medium
-          hover:bg-coffee-500 transition-colors disabled:opacity-40"
+        className="w-full py-3 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
       >
-        Начать заваривание →
+        Начать заваривание
       </button>
     </form>
   )
