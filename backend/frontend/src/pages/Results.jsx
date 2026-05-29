@@ -137,7 +137,7 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               placeholder="например, 215"
               value={beverageWeight}
               onChange={(e) => setBeverageWeight(e.target.value)}
@@ -149,7 +149,7 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               placeholder="например, 1.35"
               value={tds}
               onChange={(e) => setTds(e.target.value)}

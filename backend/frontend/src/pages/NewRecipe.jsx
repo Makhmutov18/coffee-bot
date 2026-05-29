@@ -277,7 +277,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               type="text"
               value={form.name}
               onChange={handleChange('name')}
-              placeholder="Например: V60"
+              placeholder="V60"
             />
           </div>
           <div>
@@ -286,7 +286,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               type="text"
               value={form.roaster}
               onChange={handleChange('roaster')}
-              placeholder="например, Субмарина, Сварщица..."
+              placeholder="Tasty Coffee"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -382,7 +382,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               value={form.dose}
               onChange={handleChange('dose')}
               placeholder="15"
@@ -395,7 +395,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               value={form.totalWater}
               onChange={handleChange('totalWater')}
               placeholder="250"
@@ -408,7 +408,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               value={form.waterTemp}
               onChange={handleChange('waterTemp')}
               placeholder="94"
@@ -423,7 +423,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           <input
             type="text"
             inputMode="decimal"
-            pattern="[0-9]*"
+            pattern="\d*\.?\d*"
             value={form.waterTds}
             onChange={handleChange('waterTds')}
             placeholder="50"
@@ -471,7 +471,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
                 <input
                   type="text"
                   inputMode="decimal"
-                  pattern="[0-9]*"
+                  pattern="\d*\.?\d*"
                   value={step.volume}
                   onChange={handleStepChange(i, 'volume')}
                   placeholder="мл"

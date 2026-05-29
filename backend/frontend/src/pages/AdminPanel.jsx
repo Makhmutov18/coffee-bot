@@ -226,7 +226,7 @@ export default function AdminPanel() {
             <input
               type="text"
               inputMode="decimal"
-              pattern="[0-9]*"
+              pattern="\d*\.?\d*"
               value={waterPpm}
               onChange={(e) => setWaterPpm(parseInt(e.target.value, 10) || 0)}
               className="w-full px-3 py-2 rounded-lg bg-coffee-800/60 border border-coffee-700/50 text-coffee-cream focus:outline-none focus:border-coffee-500 text-sm"
