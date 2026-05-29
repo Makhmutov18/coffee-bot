@@ -1,7 +1,11 @@
 """
 Модели SQLAlchemy для базы данных рецептов альтернативного кофе.
 Таблицы:
-  - recipes: рецепты заваривания
+  - users: пользователи (личные / бариста / владельцы)
+  - companies: компании (кофейни / сети)
+  - spots: точки заваривания (споты кофейни)
+  - user_spots: связь бариста с точками (M2M)
+  - recipes: рецепты заваривания (личные и коммерческие)
   - measurements: замеры TDS и экстракции
 
 Поддерживает SQLite (локально) и PostgreSQL (Railway / продакшн).
@@ -10,6 +14,7 @@
 import json
 import logging
 import os
+import enum
 from datetime import datetime
 from typing import Optional
 
@@ -20,6 +25,7 @@ from sqlalchemy import (
     String,
     DateTime,
     ForeignKey,
+    Table,
     create_engine,
     text,
 )
@@ -34,13 +40,123 @@ _DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 os.makedirs(_DB_DIR, exist_ok=True)
 
 
+# ──────────────────────────────────────────────
+# B2B: Роли пользователей
+# ──────────────────────────────────────────────
+
+class UserRole(str, enum.Enum):
+    """Роли пользователей в системе."""
+    personal = "personal"  # Варит для себя дома
+    barista = "barista"    # Бариста на точке
+    owner = "owner"        # Владелец сети / Старший бариста
+
+
+# Промежуточная таблица для связи "Многие ко многим" (Бариста <-> Точки)
+user_spots = Table(
+    "user_spots",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("spot_id", Integer, ForeignKey("spots.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+# ──────────────────────────────────────────────
+# B2B: Пользователь
+# ──────────────────────────────────────────────
+
+class User(Base):
+    """Пользователь системы: может быть домашним, бариста или владельцем."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=True)
+    username = Column(String, nullable=True)
+    role = Column(String, default=UserRole.personal.value, nullable=False)
+
+    # Если юзер — владелец, у него есть компания
+    company = relationship("Company", back_populates="owner", uselist=False)
+
+    # Точки, к которым у бариста есть доступ
+    accessible_spots = relationship("Spot", secondary=user_spots, back_populates="staff")
+
+    # Личные рецепты домашнего пользователя
+    personal_recipes = relationship("Recipe", back_populates="user")
+
+    def __repr__(self) -> str:
+        return (
+            f"<User(id={self.id}, telegram_id='{self.telegram_id}', "
+            f"role='{self.role}')>"
+        )
+
+
+# ──────────────────────────────────────────────
+# B2B: Компания
+# ──────────────────────────────────────────────
+
+class Company(Base):
+    """Компания (кофейня / сеть кофеен)."""
+
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # Например, "Смородина"
+    owner_id = Column(Integer, ForeignKey("users.id"))
+
+    owner = relationship("User", back_populates="company")
+    spots = relationship("Spot", back_populates="company", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<Company(id={self.id}, name='{self.name}')>"
+
+
+# ──────────────────────────────────────────────
+# B2B: Спот (точка заваривания)
+# ──────────────────────────────────────────────
+
+class Spot(Base):
+    """Точка заваривания внутри компании (конкретная кофейня)."""
+
+    __tablename__ = "spots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    name = Column(String, nullable=False)  # Например, "Спот на Ленина"
+    address = Column(String, nullable=True)
+    water_ppm = Column(Integer, default=70)  # Дефолтная минерализация воды на точке
+    grinder_model = Column(String, nullable=True)  # Основная кофемолка на точке
+
+    company = relationship("Company", back_populates="spots")
+    staff = relationship("User", secondary=user_spots, back_populates="accessible_spots")
+
+    # Рецепты, созданные специально под этот спот
+    recipes = relationship("Recipe", back_populates="spot")
+
+    def __repr__(self) -> str:
+        return f"<Spot(id={self.id}, name='{self.name}', company_id={self.company_id})>"
+
+
+# ──────────────────────────────────────────────
+# Рецепт заваривания
+# ──────────────────────────────────────────────
+
 class Recipe(Base):
-    """Рецепт заваривания альтернативного кофе."""
+    """Рецепт заваривания альтернативного кофе.
+
+    Может быть:
+    - личным (user_id задан, spot_id = None)
+    - коммерческим (spot_id задан, привязан к конкретной точке)
+    """
 
     __tablename__ = "recipes"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # B2B: привязка к пользователю и/или споту
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="ID пользователя (для личных рецептов)")
+    spot_id = Column(Integer, ForeignKey("spots.id"), nullable=True, comment="ID спота (для коммерческих рецептов)")
 
     # Название рецепта
     name = Column(String(255), nullable=True, comment="Название рецепта")
@@ -70,8 +186,10 @@ class Recipe(Base):
     # Дегустационный профиль (JSON)
     _tasting_notes = Column("tasting_notes", String, nullable=True, comment="Дегустационный профиль в JSON")
 
-    # Связь с замерами
+    # Связи
     measurements = relationship("Measurement", back_populates="recipe", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="personal_recipes")
+    spot = relationship("Spot", back_populates="recipes")
 
     @property
     def pour_steps(self) -> Optional[list[dict]]:
@@ -109,6 +227,10 @@ class Recipe(Base):
             f"dripper='{self.dripper_type}', dose={self.dose}g)>"
         )
 
+
+# ──────────────────────────────────────────────
+# Замеры TDS и экстракции
+# ──────────────────────────────────────────────
 
 class Measurement(Base):
     """Замеры TDS и расчёт экстракции для рецепта."""
@@ -191,16 +313,23 @@ def get_database_url() -> str:
     return f"sqlite:///{db_path}"
 
 
-def _migrate_brew_time(engine) -> None:
-    """Добавить колонку brew_time в существующую таблицу recipes (миграция)."""
+def _run_migration(engine, table: str, column: str, col_type: str) -> None:
+    """Безопасно добавить колонку в существующую таблицу (если её ещё нет)."""
     try:
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE recipes ADD COLUMN brew_time INTEGER"))
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
             conn.commit()
-            logger.info("Migration: added brew_time column to recipes table")
+            logger.info("Migration: added %s.%s (%s)", table, column, col_type)
     except Exception:
         # Колонка уже существует — это нормально
         pass
+
+
+def _migrate_existing_tables(engine) -> None:
+    """Миграции для добавления новых колонок в существующие таблицы."""
+    _run_migration(engine, "recipes", "brew_time", "INTEGER")
+    _run_migration(engine, "recipes", "user_id", "INTEGER")
+    _run_migration(engine, "recipes", "spot_id", "INTEGER")
 
 
 def init_db() -> Session:
@@ -217,7 +346,7 @@ def init_db() -> Session:
     database_url = get_database_url()
     engine = create_engine(database_url, echo=False)
     Base.metadata.create_all(engine)
-    _migrate_brew_time(engine)
+    _migrate_existing_tables(engine)
     return Session(bind=engine)
 
 
@@ -226,10 +355,22 @@ def init_db() -> Session:
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
-    # Быстрая проверка: создаём БД, добавляем тестовый рецепт и замер
+    # Быстрая проверка: создаём БД, добавляем тестовые данные
     session = init_db()
 
+    # Создаём пользователя
+    user = User(
+        telegram_id="123456789",
+        name="Тестовый пользователь",
+        username="test_user",
+        role=UserRole.personal.value,
+    )
+    session.add(user)
+    session.flush()
+
+    # Создаём рецепт
     recipe = Recipe(
+        user_id=user.id,
         bean_variety="Ethiopia Yirgacheffe",
         bean_processing="washed",
         dose=15.0,
@@ -239,6 +380,7 @@ if __name__ == "__main__":
         total_water=250.0,
         water_temp=92.0,
         water_tds=50.0,
+        brew_time=180,
         pour_steps=[
             {"time": 0, "volume": 50, "action": "bloom"},
             {"time": 30, "volume": 100, "action": "main pour"},
@@ -265,6 +407,7 @@ if __name__ == "__main__":
     session.add(measurement)
     session.commit()
 
+    print(f"Создан пользователь: {user}")
     print(f"Создан рецепт: {recipe}")
     print(f"Создан замер: {measurement}")
     print("База данных успешно инициализирована!")
