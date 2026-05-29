@@ -38,12 +38,16 @@ async def handle_health(request: web.Request) -> web.Response:
 
 
 async def handle_frontend(request: web.Request) -> web.Response:
-    """Отдать index.html фронтенда."""
+    """Отдать index.html фронтенда (без кэширования)."""
     frontend_dist = os.path.join(os.path.dirname(__file__), "frontend", "dist")
     frontend_dist = os.path.normpath(frontend_dist)
     index_path = os.path.join(frontend_dist, "index.html")
     if os.path.isfile(index_path):
-        return web.FileResponse(index_path)
+        resp = web.FileResponse(index_path)
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
     return web.Response(text="Frontend not built", status=503)
 
 
@@ -82,7 +86,11 @@ async def run_health_server() -> None:
         if os.path.isdir(assets_path):
             assets_files = os.listdir(assets_path)
             logger.info("Assets files: %s", assets_files)
-        app.router.add_static("/assets/", path=os.path.join(frontend_dist, "assets"))
+        app.router.add_static(
+            "/assets/",
+            path=os.path.join(frontend_dist, "assets"),
+            append_version=False,
+        )
         app.router.add_get("/", handle_frontend)
         logger.info("Frontend static files served from %s", frontend_dist)
     else:
