@@ -6,7 +6,7 @@ import logging
 import os
 
 from aiogram import Router, F
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -17,6 +17,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     WebAppInfo,
+    CommandObject,
 )
 
 from app.database import Recipe, Measurement, User, UserRole, Spot, Company, user_spots, calculate_extraction, init_db
@@ -86,14 +87,14 @@ yes_no_kb = ReplyKeyboardMarkup(
 # Команда /start
 # ──────────────────────────────────────────────
 
-@router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
+@router.message(Command("start"))
+async def cmd_start(message: Message, command: CommandObject) -> None:
     telegram_id = str(message.from_user.id)
     name = message.from_user.first_name
     username = message.from_user.username
 
     # ── Deep linking: проверяем аргументы команды ──
-    args = message.get_args() or ""
+    args = command.args or ""
     logger.info("ARGS RECEIVED: telegram_id=%s, args='%s'", telegram_id, args)
     if args and "join_spot_" in args:
         token = args.replace("join_spot_", "")
