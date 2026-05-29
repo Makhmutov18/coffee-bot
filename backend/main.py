@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from app.api import setup_api_routes
 from app.auth import tg_auth_middleware
 from app.bot.handlers import router
-from app.database import init_db
+from app.database import init_database, close_engine
 
 load_dotenv()
 
@@ -140,10 +140,9 @@ async def main() -> None:
         )
         return
 
-    # ── Инициализация базы данных (create_all + миграции) ──
+    # ── Инициализация базы данных (глобальный engine + create_all + миграции) ──
     try:
-        session = init_db()
-        session.close()
+        init_database()
         logger.info("База данных успешно инициализирована (таблицы созданы/проверены)")
     except Exception as e:
         logger.error("Ошибка инициализации базы данных: %s", e)
@@ -162,13 +161,16 @@ async def main() -> None:
 
     logger.info("Бот запущен и готов к работе!")
 
-    # Запускаем polling и health check параллельно
-    await asyncio.gather(
-        run_polling(bot, dp),
-        run_health_server(),
-    )
-
-    logger.info("Shutdown complete")
+    try:
+        # Запускаем polling и health check параллельно
+        await asyncio.gather(
+            run_polling(bot, dp),
+            run_health_server(),
+        )
+    finally:
+        # Graceful shutdown: закрываем engine БД
+        close_engine()
+        logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":

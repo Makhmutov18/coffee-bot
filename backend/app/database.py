@@ -294,8 +294,11 @@ def calculate_extraction(
 
 
 # ──────────────────────────────────────────────
-# Утилита для создания таблиц
+# Глобальный engine (создаётся один раз при старте)
 # ──────────────────────────────────────────────
+
+_engine = None
+
 
 def get_database_url() -> str:
     """
@@ -313,6 +316,44 @@ def get_database_url() -> str:
     # Локальный SQLite fallback
     db_path = os.path.join(_DB_DIR, "coffee.db")
     return f"sqlite:///{db_path}"
+
+
+def init_engine():
+    """
+    Создать и вернуть глобальный engine (вызывается один раз при старте приложения).
+
+    Настройки пула:
+      - pool_pre_ping=True  — проверять соединение перед использованием
+      - pool_recycle=300    — пересоздавать соединения каждые 5 минут
+      - pool_size=5         — 5 постоянных соединений в пуле
+      - max_overflow=10     — до 10 дополнительных соединений при пике
+    """
+    global _engine
+    if _engine is not None:
+        return _engine
+    database_url = get_database_url()
+    _engine = create_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=5,
+        max_overflow=10,
+    )
+    logger.info(
+        "Database engine created (pool_pre_ping=True, pool_recycle=300, "
+        "pool_size=5, max_overflow=10)"
+    )
+    return _engine
+
+
+def close_engine() -> None:
+    """Закрыть глобальный engine при graceful shutdown."""
+    global _engine
+    if _engine is not None:
+        _engine.dispose()
+        logger.info("Database engine disposed")
+        _engine = None
 
 
 def _run_migration(engine, table: str, column: str, col_type: str) -> None:
@@ -335,21 +376,29 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 
+def init_database() -> None:
+    """
+    Инициализировать базу данных: создать глобальный engine, таблицы и миграции.
+    Вызывается ОДИН РАЗ при старте приложения (в main.py).
+    """
+    engine = init_engine()
+    Base.metadata.create_all(engine)
+    _migrate_existing_tables(engine)
+    logger.info("Database tables created/verified")
+
+
 def init_db() -> Session:
     """
-    Создать (или подключиться к) базе данных и вернуть сессию.
+    Создать новую сессию, привязанную к глобальному engine.
 
-    В продакшне (Railway) использует PostgreSQL из DATABASE_URL.
-    Локально использует SQLite в папке data/.
+    В отличие от предыдущей версии, НЕ создаёт новый engine и НЕ вызывает
+    create_all() — это делается один раз в init_database().
 
     Возвращает
     ----------
     sqlalchemy.orm.Session
     """
-    database_url = get_database_url()
-    engine = create_engine(database_url, echo=False)
-    Base.metadata.create_all(engine)
-    _migrate_existing_tables(engine)
+    engine = init_engine()  # возвращает уже существующий _engine
     return Session(bind=engine)
 
 

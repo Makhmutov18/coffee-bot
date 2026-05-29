@@ -9,7 +9,7 @@ import secrets
 from aiohttp import web
 
 from app.database import (
-    init_db, Recipe, Measurement, Spot, Company, UserRole, User,
+    Recipe, Measurement, Spot, Company, UserRole, User,
     user_spots, calculate_extraction,
 )
 from app.auth import get_current_user
@@ -148,7 +148,7 @@ async def handle_create_company(request: web.Request) -> web.Response:
             status=400,
         )
 
-    session = init_db()
+    session = request.get("db_session")
     try:
         company = Company(name=name, owner_id=user.id)
         session.add(company)
@@ -170,8 +170,6 @@ async def handle_create_company(request: web.Request) -> web.Response:
         session.rollback()
         logger.error("Error creating company: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
@@ -191,11 +189,8 @@ async def handle_list_user_spots(request: web.Request) -> web.Response:
         # Бариста видит ВСЕ споты своей компании (для ротации между точками)
         if user.accessible_spots:
             company_id = user.accessible_spots[0].company_id
-            session = init_db()
-            try:
-                spots = session.query(Spot).filter(Spot.company_id == company_id).all()
-            finally:
-                session.close()
+            session = request.get("db_session")
+            spots = session.query(Spot).filter(Spot.company_id == company_id).all()
         else:
             spots = []
     elif user.role == UserRole.manager.value:
@@ -253,7 +248,7 @@ async def handle_create_spot(request: web.Request) -> web.Response:
     except json.JSONDecodeError:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
-    session = init_db()
+    session = request.get("db_session")
     try:
         spot = Spot(
             company_id=user.company.id,
@@ -278,8 +273,6 @@ async def handle_create_spot(request: web.Request) -> web.Response:
         session.rollback()
         logger.error("Error creating spot: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
@@ -298,7 +291,7 @@ async def handle_generate_invite(request: web.Request) -> web.Response:
         )
 
     spot_id = request.match_info.get("id")
-    session = init_db()
+    session = request.get("db_session")
     try:
         spot = session.query(Spot).filter(Spot.id == int(spot_id)).first()
         if not spot:
@@ -331,8 +324,6 @@ async def handle_generate_invite(request: web.Request) -> web.Response:
         session.rollback()
         logger.error("Error generating invite: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 async def get_bot_username():
@@ -353,7 +344,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
     except json.JSONDecodeError:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
-    session = init_db()
+    session = request.get("db_session")
 
     try:
         spot_id = data.get("spotId")
@@ -432,8 +423,6 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
         session.rollback()
         logger.error("Error saving recipe: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
@@ -445,7 +434,7 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
     user = await get_current_user(request)
     spot_id = request.query.get("spotId")
 
-    session = init_db()
+    session = request.get("db_session")
     try:
         query = session.query(Recipe)
 
@@ -463,8 +452,6 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
     except Exception as e:
         logger.error("Error listing recipes: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
@@ -474,7 +461,7 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
 async def handle_get_recipe(request: web.Request) -> web.Response:
     """Получить рецепт по ID."""
     recipe_id = request.match_info.get("id")
-    session = init_db()
+    session = request.get("db_session")
     try:
         r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
         if not r:
@@ -512,8 +499,6 @@ async def handle_get_recipe(request: web.Request) -> web.Response:
     except Exception as e:
         logger.error("Error getting recipe: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
@@ -525,7 +510,7 @@ async def handle_delete_recipe(request: web.Request) -> web.Response:
     user = await get_current_user(request)
     recipe_id = request.match_info.get("id")
 
-    session = init_db()
+    session = request.get("db_session")
     try:
         r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
         if not r:
@@ -555,8 +540,6 @@ async def handle_delete_recipe(request: web.Request) -> web.Response:
         session.rollback()
         logger.error("Error deleting recipe: %s", e)
         return web.json_response({"error": str(e)}, status=500)
-    finally:
-        session.close()
 
 
 # ──────────────────────────────────────────────
