@@ -8,6 +8,7 @@
 """
 
 import json
+import logging
 import os
 from datetime import datetime
 from typing import Optional
@@ -20,8 +21,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     create_engine,
+    text,
 )
 from sqlalchemy.orm import declarative_base, relationship, Session
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -187,6 +191,18 @@ def get_database_url() -> str:
     return f"sqlite:///{db_path}"
 
 
+def _migrate_brew_time(engine) -> None:
+    """Добавить колонку brew_time в существующую таблицу recipes (миграция)."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE recipes ADD COLUMN brew_time INTEGER"))
+            conn.commit()
+            logger.info("Migration: added brew_time column to recipes table")
+    except Exception:
+        # Колонка уже существует — это нормально
+        pass
+
+
 def init_db() -> Session:
     """
     Создать (или подключиться к) базе данных и вернуть сессию.
@@ -201,6 +217,7 @@ def init_db() -> Session:
     database_url = get_database_url()
     engine = create_engine(database_url, echo=False)
     Base.metadata.create_all(engine)
+    _migrate_brew_time(engine)
     return Session(bind=engine)
 
 
