@@ -15,6 +15,17 @@ const TABS = [
   { key: 'admin', label: 'Управление', icon: '⚙️' },
 ]
 
+function getVisibleTabs(userRole) {
+  const isBarista = userRole === 'barista'
+  return TABS.filter((tab) => {
+    // Admin — только для owner
+    if (tab.key === 'admin' && userRole !== 'owner') return false
+    // Архив — скрыт для barista (список рецептов на первой вкладке)
+    if (tab.key === 'recipes' && isBarista) return false
+    return true
+  })
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('recipe')
   const [recipe, setRecipe] = useState(null)
@@ -99,8 +110,8 @@ export default function App() {
   }, [])
 
   const handleGoToRecipes = useCallback(() => {
-    setActiveTab('recipes')
-  }, [])
+    setActiveTab(userRole === 'barista' ? 'recipe' : 'recipes')
+  }, [userRole])
 
   const handleSelectRecipe = useCallback((r) => {
     setSelectedRecipeId(r.id)
@@ -111,6 +122,13 @@ export default function App() {
   }, [])
 
   const handleRepeatRecipe = useCallback((r) => {
+    if (userRole === 'barista') {
+      // Barista: сразу в BrewTimer, минуя форму создания
+      setRecipe(r)
+      setSelectedRecipeId(null)
+      setActiveTab('brew')
+      return
+    }
     const prefill = {
       roaster: r.roaster || '',
       beanVariety: r.beanVariety,
@@ -131,7 +149,7 @@ export default function App() {
     setRepeatRecipe(prefill)
     setSelectedRecipeId(null)
     setActiveTab('recipe')
-  }, [])
+  }, [userRole])
 
   return (
     <div className="flex flex-col h-screen bg-coffee-950 text-coffee-100 selection:bg-coffee-500/30">
@@ -160,12 +178,28 @@ export default function App() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto px-4 py-6">
-        {activeTab === 'recipe' && (
+        {activeTab === 'recipe' && userRole !== 'barista' && (
           <NewRecipe
             key={repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
             onSave={handleRecipeSave}
             initialData={repeatRecipe}
             spotId={selectedSpotId}
+          />
+        )}
+        {activeTab === 'recipe' && userRole === 'barista' && !selectedRecipeId && (
+          <RecipeList
+            onSelectRecipe={handleSelectRecipe}
+            onNewRecipe={handleNewRecipe}
+            spotId={selectedSpotId}
+            userRole={userRole}
+          />
+        )}
+        {activeTab === 'recipe' && userRole === 'barista' && selectedRecipeId && (
+          <RecipeDetail
+            recipeId={selectedRecipeId}
+            onBack={handleBackToList}
+            onRepeat={handleRepeatRecipe}
+            userRole={userRole}
           />
         )}
         {activeTab === 'brew' && (
@@ -184,7 +218,7 @@ export default function App() {
             onGoToRecipes={handleGoToRecipes}
           />
         )}
-        {activeTab === 'recipes' && !selectedRecipeId && (
+        {activeTab === 'recipes' && userRole !== 'barista' && !selectedRecipeId && (
           <RecipeList
             onSelectRecipe={handleSelectRecipe}
             onNewRecipe={handleNewRecipe}
@@ -192,7 +226,7 @@ export default function App() {
             userRole={userRole}
           />
         )}
-        {activeTab === 'recipes' && selectedRecipeId && (
+        {activeTab === 'recipes' && userRole !== 'barista' && selectedRecipeId && (
           <RecipeDetail
             recipeId={selectedRecipeId}
             onBack={handleBackToList}
@@ -200,7 +234,7 @@ export default function App() {
             userRole={userRole}
           />
         )}
-        {activeTab === 'admin' && (
+        {activeTab === 'admin' && userRole === 'owner' && (
           <AdminPanel />
         )}
       </main>
@@ -216,7 +250,7 @@ export default function App() {
         }}
       >
         <nav className="flex max-w-md mx-auto bg-coffee-900/90 backdrop-blur-lg border border-coffee-800/60 rounded-2xl shadow-xl pointer-events-auto overflow-hidden">
-          {TABS.filter((tab) => tab.key !== 'admin' || userRole === 'owner').map((tab) => {
+          {getVisibleTabs(userRole).map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
