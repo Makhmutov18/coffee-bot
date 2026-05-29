@@ -34,6 +34,7 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
   const [history, setHistory] = useState([])
   const [recipes, setRecipes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [favoriteFilter, setFavoriteFilter] = useState('all') // 'all' | 'favorites'
   const [loading, setLoading] = useState({ history: true, library: true })
   const [error, setError] = useState(null)
 
@@ -85,9 +86,11 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
   // ── Фильтрация рецептов ──
   const filteredRecipes = useMemo(() => {
     let result = recipes
+
+    // Фильтр по поиску
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      result = recipes.filter((r) => {
+      result = result.filter((r) => {
         const name = (r.name || '').toLowerCase()
         const bean = (r.beanVariety || '').toLowerCase()
         const method = (r.dripperType || '').toLowerCase()
@@ -95,13 +98,19 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
         return name.includes(q) || bean.includes(q) || method.includes(q) || roaster.includes(q)
       })
     }
+
+    // Фильтр "Только избранные"
+    if (favoriteFilter === 'favorites') {
+      result = result.filter((r) => r.isFavorite)
+    }
+
     // Сортировка: избранные сверху
     return [...result].sort((a, b) => {
       if (a.isFavorite && !b.isFavorite) return -1
       if (!a.isFavorite && b.isFavorite) return 1
       return 0
     })
-  }, [recipes, searchQuery])
+  }, [recipes, searchQuery, favoriteFilter])
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -240,14 +249,47 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
             )}
           </div>
 
+          {/* Фильтр: Все / Избранное */}
+          <div className="flex gap-1.5 bg-tech-surface rounded-xl border border-tech-border p-1">
+            <button
+              onClick={() => setFavoriteFilter('all')}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                favoriteFilter === 'all'
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              Все рецепты
+            </button>
+            <button
+              onClick={() => setFavoriteFilter('favorites')}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                favoriteFilter === 'favorites'
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              ★ Избранное
+            </button>
+          </div>
+
           {loading.library ? (
             <div className="text-center py-8 text-tech-secondary">Загрузка рецептов...</div>
           ) : error ? (
             <div className="text-center py-8 text-red-400">Ошибка: {error}</div>
           ) : filteredRecipes.length === 0 ? (
             <div className="text-center py-12 text-tech-secondary">
-              <div className="text-4xl mb-3">📖</div>
-              {searchQuery ? (
+              <div className="text-4xl mb-3">
+                {favoriteFilter === 'favorites' ? '⭐' : '📖'}
+              </div>
+              {favoriteFilter === 'favorites' ? (
+                <>
+                  <p className="text-sm">Список избранного пуст</p>
+                  <p className="text-xs mt-1 opacity-60">
+                    Нажмите звездочку на карточке рецепта, чтобы закрепить его здесь
+                  </p>
+                </>
+              ) : searchQuery ? (
                 <p className="text-sm">Ничего не найдено по запросу «{searchQuery}»</p>
               ) : (
                 <>
