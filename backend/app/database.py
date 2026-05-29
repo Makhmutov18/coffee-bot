@@ -127,6 +127,7 @@ class Spot(Base):
     address = Column(String, nullable=True)
     water_ppm = Column(Integer, default=70)  # Дефолтная минерализация воды на точке
     grinder_model = Column(String, nullable=True)  # Основная кофемолка на точке
+    invite_token = Column(String, nullable=True, unique=True)  # Токен для инвайт-ссылки
 
     company = relationship("Company", back_populates="spots")
     staff = relationship("User", secondary=user_spots, back_populates="accessible_spots")
@@ -331,6 +332,7 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "recipes", "brew_time", "INTEGER")
     _run_migration(engine, "recipes", "user_id", "INTEGER")
     _run_migration(engine, "recipes", "spot_id", "INTEGER")
+    _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 
 def init_db() -> Session:
