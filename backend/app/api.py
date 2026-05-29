@@ -12,6 +12,7 @@ from aiohttp import web
 from app.database import (
     Recipe, Measurement, Spot, Company, UserRole, User,
     user_spots, calculate_extraction, convert_grinder_value,
+    list_grinder_models,
 )
 from app.auth import get_current_user
 
@@ -610,6 +611,21 @@ async def handle_calculate(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# Список моделей кофемолок
+# ──────────────────────────────────────────────
+
+async def handle_list_grinder_models(request: web.Request) -> web.Response:
+    """
+    Вернуть список всех уникальных названий кофемолок из таблицы grinder_data.
+
+    Ответ: JSON-массив строк, например:
+      ["baratza_encore_esp", "comandante_c40_mk3_mk4", ...]
+    """
+    models = await asyncio.to_thread(list_grinder_models)
+    return web.json_response(models)
+
+
+# ──────────────────────────────────────────────
 # Конвертация кофемолок
 # ──────────────────────────────────────────────
 
@@ -752,6 +768,7 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
+    app.router.add_get("/api/grinders/models", handle_list_grinder_models)
     app.router.add_get("/api/grinders/convert", handle_convert_grinder)
     logger.info(
         "API routes registered: "
@@ -759,5 +776,6 @@ def setup_api_routes(app: web.Application) -> None:
         "POST /api/companies, POST /api/companies/change-role, "
         "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
-        "POST /api/calculate, GET /api/grinders/convert"
+        "POST /api/calculate, "
+        "GET /api/grinders/models, GET /api/grinders/convert"
     )

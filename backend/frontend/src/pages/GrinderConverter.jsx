@@ -1,24 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { convertGrinder } from '../api'
+import { convertGrinder, listGrinderModels } from '../api'
 
-const GRINDER_OPTIONS = [
-  { value: 'comandante_c40', label: 'Comandante C40' },
-  { value: 'mahlkonig_ek43', label: 'Mahlkönig EK43' },
-  { value: 'timemore_c2', label: 'Timemore C2' },
-  { value: 'kingrinder_k6', label: 'Kingrinder K6' },
-  { value: 'mischief_m40', label: 'Mischief M40' },
-  { value: 'onezpresso_zp6', label: '1Zpresso ZP6' },
-  { value: 'fellow_ode_v2', label: 'Fellow Ode V2' },
-]
+function grinderNameToLabel(name) {
+  return name
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 export default function GrinderConverter() {
-  const [fromGrinder, setFromGrinder] = useState('comandante_c40')
-  const [toGrinder, setToGrinder] = useState('timemore_c2')
+  const [grinderOptions, setGrinderOptions] = useState([])
+  const [fromGrinder, setFromGrinder] = useState('')
+  const [toGrinder, setToGrinder] = useState('')
   const [value, setValue] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const debounceRef = useRef(null)
+
+  // Загружаем список кофемолок с сервера
+  useEffect(() => {
+    listGrinderModels().then((models) => {
+      setGrinderOptions(models)
+      if (models.length > 0) {
+        setFromGrinder(models[0])
+        if (models.length > 1) {
+          setToGrinder(models[1])
+        } else {
+          setToGrinder(models[0])
+        }
+      }
+    }).catch(() => {
+      setError('Не удалось загрузить список кофемолок')
+    })
+  }, [])
 
   const doConvert = useCallback(async (from, to, val) => {
     if (!val || !val.trim() || from === to) {
@@ -44,7 +58,7 @@ export default function GrinderConverter() {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
-    if (!value || !value.trim() || fromGrinder === toGrinder) {
+    if (!value || !value.trim() || fromGrinder === toGrinder || !fromGrinder || !toGrinder) {
       setResult(null)
       setError(null)
       return
@@ -67,8 +81,18 @@ export default function GrinderConverter() {
   }, [fromGrinder, toGrinder])
 
   const getGrinderLabel = (val) => {
-    const g = GRINDER_OPTIONS.find((x) => x.value === val)
-    return g ? g.label : val
+    return grinderNameToLabel(val)
+  }
+
+  if (grinderOptions.length === 0) {
+    return (
+      <div className="space-y-5">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-coffee-200">🔄 Конвертер помола</h2>
+          <p className="text-xs text-coffee-400 mt-1">Загрузка списка кофемолок...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -90,8 +114,8 @@ export default function GrinderConverter() {
           onChange={(e) => { setFromGrinder(e.target.value); setResult(null); setError(null) }}
           className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-3 py-2.5 text-sm text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
         >
-          {GRINDER_OPTIONS.map((g) => (
-            <option key={g.value} value={g.value}>{g.label}</option>
+          {grinderOptions.map((g) => (
+            <option key={g} value={g}>{getGrinderLabel(g)}</option>
           ))}
         </select>
         <input
@@ -128,8 +152,8 @@ export default function GrinderConverter() {
           onChange={(e) => { setToGrinder(e.target.value); setResult(null); setError(null) }}
           className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-3 py-2.5 text-sm text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
         >
-          {GRINDER_OPTIONS.map((g) => (
-            <option key={g.value} value={g.value}>{g.label}</option>
+          {grinderOptions.map((g) => (
+            <option key={g} value={g}>{getGrinderLabel(g)}</option>
           ))}
         </select>
         <div className="relative">

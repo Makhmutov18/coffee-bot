@@ -85,6 +85,10 @@ export async function createCompany(name) {
   })
 }
 
+export async function listGrinderModels() {
+  return apiFetch(`${API_BASE}/api/grinders/models`)
+}
+
 export async function convertGrinder(fromGrinder, toGrinder, value) {
   const params = new URLSearchParams({
     from_grinder: fromGrinder,

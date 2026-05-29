@@ -262,28 +262,30 @@ class Measurement(Base):
 
 class GrinderMapping(Base):
     """
-    Таблица соответствия помолов между разными кофемолками.
+    Динамическая таблица соответствия помолов между кофемолками.
 
-    Каждая строка — один диапазон микрон с указанием настроек для 7 кофемолок.
-    Алгоритм конвертации: найти строку, где значение на исходной кофемолке
-    попадает в диапазон, и вернуть значение на целевой кофемолке из той же строки.
+    Каждая строка — значение одной кофемолки для одного диапазона микрон.
+    Колонки:
+      - micron_range: диапазон микрон (например, '550-600')
+      - method: метод заваривания (например, 'Воронка V60 / Калита (Стандарт)')
+      - grinder_name: название кофемолки (например, 'comandante_c40_mk3_mk4')
+      - clicks_value: значение помола (например, '19-20 clicks' или 'не рекомендуется')
+
+    Алгоритм конвертации: найти micron_range, где значение на исходной кофемолке
+    попадает в диапазон clicks_value, и вернуть clicks_value целевой кофемолки
+    из того же micron_range.
     """
 
-    __tablename__ = "grinder_mappings"
+    __tablename__ = "grinder_data"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    micron_range = Column(String(32), nullable=False, comment="Диапазон микрон (например, '550-600')")
+    micron_range = Column(String(32), nullable=False, index=True, comment="Диапазон микрон (например, '550-600')")
     method = Column(String(128), nullable=False, comment="Метод заваривания (например, 'Воронка V60 / Калита (Стандарт)')")
-    comandante_c40 = Column(String(32), nullable=False, comment="Настройка Comandante C40")
-    mahlkonig_ek43 = Column(String(32), nullable=False, comment="Настройка Mahlkönig EK43")
-    timemore_c2 = Column(String(32), nullable=False, comment="Настройка Timemore C2")
-    kingrinder_k6 = Column(String(32), nullable=False, comment="Настройка Kingrinder K6")
-    mischief_m40 = Column(String(32), nullable=False, comment="Настройка Mischief M40")
-    onezpresso_zp6 = Column(String(32), nullable=False, comment="Настройка 1Zpresso ZP6")
-    fellow_ode_v2 = Column(String(32), nullable=False, comment="Настройка Fellow Ode V2")
+    grinder_name = Column(String(64), nullable=False, index=True, comment="Название кофемолки (например, 'comandante_c40_mk3_mk4')")
+    clicks_value = Column(String(32), nullable=False, comment="Значение помола (например, '19-20 clicks' или 'не рекомендуется')")
 
     def __repr__(self) -> str:
-        return f"<GrinderMapping(micron='{self.micron_range}', method='{self.method}')>"
+        return f"<GrinderMapping(grinder='{self.grinder_name}', micron='{self.micron_range}')>"
 
 
 # ──────────────────────────────────────────────
@@ -407,28 +409,17 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 
-GRINDER_COLUMNS = [
-    "comandante_c40",
-    "mahlkonig_ek43",
-    "timemore_c2",
-    "kingrinder_k6",
-    "mischief_m40",
-    "onezpresso_zp6",
-    "fellow_ode_v2",
-]
-
-
 def _seed_grinder_mappings(engine) -> None:
     """
-    Полная перезаливка таблицы grinder_mappings из JSON-файла grinders_data.json.
+    Полная перезаливка таблицы grinder_data из JSON-файла grinders_data.json.
+
+    Нормализация: каждая строка JSON (один диапазон микрон) превращается
+    в N строк БД — по одной на каждую кофемолку в этом диапазоне.
 
     При каждом старте:
       1. Удаляет ВСЕ старые записи (DELETE).
-      2. Вставляет 20 строк из grinders_data.json.
+      2. Вставляет нормализованные данные.
     """
-    # Ищем grinders_data.json — он лежит в newfile/ относительно корня проекта
-    # В Docker: WORKDIR /app, файл копируется в /app/newfile/grinders_data.json
-    # Локально: относительно backend/ ищем ../newfile/grinders_data.json
     candidates = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "grinders_data.json"),
         os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "newfile", "grinders_data.json"),
@@ -447,29 +438,40 @@ def _seed_grinder_mappings(engine) -> None:
     with open(json_path, "r", encoding="utf-8") as f:
         seed_data = json.load(f)
 
+    # Определяем все ключи кофемолок (все ключи, кроме micron_range и method)
+    grinder_keys = set()
+    for row in seed_data:
+        for k in row:
+            if k not in ("micron_range", "method"):
+                grinder_keys.add(k)
+    grinder_keys = sorted(grinder_keys)
+
     with Session(bind=engine) as s:
         try:
             deleted = s.query(GrinderMapping).delete()
             s.flush()
             logger.info("GrinderMapping: deleted %d old rows", deleted)
 
+            count = 0
             for row in seed_data:
-                entry = GrinderMapping(
-                    micron_range=row.get("micron_range", ""),
-                    method=row.get("method", ""),
-                    comandante_c40=row.get("comandante_c40", ""),
-                    mahlkonig_ek43=row.get("mahlkonig_ek43", ""),
-                    timemore_c2=row.get("timemore_c2", ""),
-                    kingrinder_k6=row.get("kingrinder_k6", ""),
-                    mischief_m40=row.get("mischief_m40", ""),
-                    onezpresso_zp6=row.get("onezpresso_zp6", ""),
-                    fellow_ode_v2=row.get("fellow_ode_v2", ""),
-                )
-                s.add(entry)
+                micron_range = row.get("micron_range", "")
+                method = row.get("method", "")
+                for gk in grinder_keys:
+                    clicks_value = row.get(gk, "")
+                    if not clicks_value:
+                        continue
+                    entry = GrinderMapping(
+                        micron_range=micron_range,
+                        method=method,
+                        grinder_name=gk,
+                        clicks_value=clicks_value,
+                    )
+                    s.add(entry)
+                    count += 1
             s.commit()
             logger.info(
-                "GrinderMapping seeded with %d rows from %s",
-                len(seed_data), json_path,
+                "GrinderMapping seeded with %d rows (%d grinders) from %s",
+                count, len(grinder_keys), json_path,
             )
         except Exception:
             s.rollback()
@@ -494,7 +496,6 @@ def _parse_range_value(s: str) -> tuple[float, float] | None:
         return None
     s_lower = s.strip().lower()
 
-    # "не рекомендуется" → None
     if "не рекомендуется" in s_lower:
         return None
 
@@ -530,6 +531,27 @@ def _parse_range_value(s: str) -> tuple[float, float] | None:
         return None
 
 
+def list_grinder_models() -> list[str]:
+    """
+    Вернуть список всех уникальных названий кофемолок из таблицы grinder_data.
+
+    СИНХРОННАЯ функция — создаёт свою сессию.
+    Должна вызываться через asyncio.to_thread() из async-хендлера.
+    """
+    engine = init_engine()
+    with Session(bind=engine) as s:
+        try:
+            rows = (
+                s.query(GrinderMapping.grinder_name)
+                .distinct()
+                .order_by(GrinderMapping.grinder_name)
+                .all()
+            )
+            return [r[0] for r in rows]
+        finally:
+            s.close()
+
+
 def convert_grinder_value(
     from_grinder: str,
     to_grinder: str,
@@ -539,100 +561,82 @@ def convert_grinder_value(
     Конвертировать значение помола между кофемолками.
 
     Алгоритм:
-      1. Парсит переданное value как число.
-      2. Ищет в таблице GrinderMapping строку, где значение на from_grinder
-         образует диапазон, в который попадает value.
-      3. Возвращает значение на to_grinder из той же строки.
+      1. Парсит переданное value как число (замена запятой на точку для iOS).
+      2. Ищет micron_range, где clicks_value исходной кофемолки образует
+         диапазон, в который попадает value.
+      3. Возвращает clicks_value целевой кофемолки из того же micron_range.
 
     Если value не попадает ни в один диапазон — возвращает
-    {"result": "Вне диапазона", "method": "—", "micron_range": "—"}.
+    {"result": "Не рекомендуется / Вне лимитов", "method": "—", "micron_range": "—"}.
 
     СИНХРОННАЯ функция — ВСЕГДА создаёт свою сессию.
     Должна вызываться через asyncio.to_thread() из async-хендлера.
-
-    Параметры
-    ---------
-    from_grinder : str
-        Имя колонки исходной кофемолки (comandante_c40, timemore_c2, ...).
-    to_grinder : str
-        Имя колонки целевой кофемолки.
-    value : str
-        Значение на исходной кофемолке (например, '20').
-
-    Возвращает
-    ----------
-    dict
-        { 'from_grinder', 'to_grinder', 'from_value', 'to_value',
-          'micron_range', 'method' } или
-        { 'result': 'Вне диапазона', 'method': '—', 'micron_range': '—' }.
     """
     engine = init_engine()
     with Session(bind=engine) as s:
         try:
-            # Парсим введённое значение как число
+            # Парсим введённое значение как число (замена запятой на точку)
+            cleaned = value.strip().replace(",", ".")
             try:
-                input_val = float(value.strip())
+                input_val = float(cleaned)
             except (ValueError, AttributeError):
                 return {
-                    "result": "Вне диапазона",
+                    "result": "Не рекомендуется / Вне лимитов",
                     "method": "—",
                     "micron_range": "—",
                 }
 
-            # Загружаем все строки
-            all_rows = s.query(GrinderMapping).all()
-            if not all_rows:
-                logger.warning("GrinderMapping table is empty")
+            # Ищем все строки для исходной кофемолки
+            from_rows = (
+                s.query(GrinderMapping)
+                .filter(GrinderMapping.grinder_name == from_grinder)
+                .all()
+            )
+            if not from_rows:
                 return {
-                    "result": "Вне диапазона",
+                    "result": "Не рекомендуется / Вне лимитов",
                     "method": "—",
                     "micron_range": "—",
                 }
 
-            # Получаем значение колонки по имени кофемолки
-            col_name = from_grinder
-            if col_name not in GRINDER_COLUMNS:
-                logger.warning("Unknown grinder column: %s", col_name)
-                return {
-                    "result": "Вне диапазона",
-                    "method": "—",
-                    "micron_range": "—",
-                }
-
-            # Ищем строку, где input_val попадает в диапазон from_grinder
-            best_row = None
-            for row in all_rows:
-                raw = getattr(row, col_name, "")
-                rng = _parse_range_value(raw)
+            # Ищем micron_range, где input_val попадает в clicks_value
+            matched_micron_range = None
+            matched_method = None
+            for row in from_rows:
+                rng = _parse_range_value(row.clicks_value)
                 if rng is None:
                     continue
                 lo, hi = rng
                 if lo <= input_val <= hi:
-                    best_row = row
+                    matched_micron_range = row.micron_range
+                    matched_method = row.method
                     break
 
-            if best_row is None:
-                # Не нашли — возвращаем "Вне диапазона"
+            if matched_micron_range is None:
                 return {
-                    "result": "Вне диапазона",
+                    "result": "Не рекомендуется / Вне лимитов",
                     "method": "—",
                     "micron_range": "—",
                 }
 
-            # Берём значение на целевой кофемолке
-            to_col_name = to_grinder
-            if to_col_name not in GRINDER_COLUMNS:
-                logger.warning("Unknown target grinder column: %s", to_col_name)
+            # Ищем значение для целевой кофемолки в том же micron_range
+            to_row = (
+                s.query(GrinderMapping)
+                .filter(
+                    GrinderMapping.grinder_name == to_grinder,
+                    GrinderMapping.micron_range == matched_micron_range,
+                )
+                .first()
+            )
+            if to_row is None:
                 return {
-                    "result": "Вне диапазона",
+                    "result": "Не рекомендуется / Вне лимитов",
                     "method": "—",
                     "micron_range": "—",
                 }
 
-            to_raw = getattr(best_row, to_col_name, "")
-            to_rng = _parse_range_value(to_raw)
+            to_rng = _parse_range_value(to_row.clicks_value)
             if to_rng is None:
-                # "не рекомендуется" или непарсится
                 to_value = "Не рекомендуется"
             else:
                 lo, hi = to_rng
@@ -643,8 +647,13 @@ def convert_grinder_value(
                 else:
                     to_value = f"{lo}-{hi}"
 
-            from_raw = getattr(best_row, col_name, "")
-            from_rng = _parse_range_value(from_raw)
+            # Форматируем from_value для отображения
+            from_rng = _parse_range_value(
+                next(
+                    r.clicks_value for r in from_rows
+                    if r.micron_range == matched_micron_range
+                )
+            )
             if from_rng is not None:
                 flo, fhi = from_rng
                 if fhi == float("inf"):
@@ -654,15 +663,15 @@ def convert_grinder_value(
                 else:
                     from_value = f"{flo}-{fhi}"
             else:
-                from_value = from_raw
+                from_value = to_row.clicks_value
 
             return {
                 "from_grinder": from_grinder,
                 "to_grinder": to_grinder,
                 "from_value": from_value,
                 "to_value": to_value,
-                "micron_range": best_row.micron_range,
-                "method": best_row.method,
+                "micron_range": matched_micron_range,
+                "method": matched_method,
             }
         finally:
             s.close()

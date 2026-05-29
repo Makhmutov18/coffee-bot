@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { saveRecipe, convertGrinder } from '../api'
+import { saveRecipe, convertGrinder, listGrinderModels } from '../api'
 
 const DRIPPERS = [
   'Hario V60',
@@ -89,16 +89,6 @@ const GRINDERS = [
   'Другая...',
 ]
 
-// Опции для инлайн-конвертера помола (короткие коды, как в API)
-const GRINDER_OPTIONS = [
-  { value: 'comandante_c40', label: 'Comandante C40' },
-  { value: 'mahlkonig_ek43', label: 'Mahlkönig EK43' },
-  { value: 'timemore_c2', label: 'Timemore C2' },
-  { value: 'kingrinder_k6', label: 'Kingrinder K6' },
-  { value: 'mischief_m40', label: 'Mischief M40' },
-  { value: 'onezpresso_zp6', label: '1Zpresso ZP6' },
-  { value: 'fellow_ode_v2', label: 'Fellow Ode V2' },
-]
 
 const INITIAL_FORM = {
   name: '',
@@ -124,15 +114,33 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
+  // ── Динамические опции кофемолок для конвертера ──
+  const [convGrinderOptions, setConvGrinderOptions] = useState([])
+
   // ── Инлайн-конвертер помола ──
   const [showConverter, setShowConverter] = useState(false)
-  const [convFrom, setConvFrom] = useState('comandante_c40')
-  const [convTo, setConvTo] = useState('timemore_c2')
+  const [convFrom, setConvFrom] = useState('')
+  const [convTo, setConvTo] = useState('')
   const [convValue, setConvValue] = useState('')
   const [convResult, setConvResult] = useState(null)
   const [convError, setConvError] = useState(null)
   const [convLoading, setConvLoading] = useState(false)
   const convDebounce = useRef(null)
+
+  // Загружаем список кофемолок для конвертера
+  useEffect(() => {
+    listGrinderModels().then((models) => {
+      setConvGrinderOptions(models)
+      if (models.length > 0) {
+        setConvFrom(models[0])
+        if (models.length > 1) {
+          setConvTo(models[1])
+        } else {
+          setConvTo(models[0])
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   const doConvert = useCallback(async (from, to, val) => {
     if (!val || !val.trim() || from === to) {
@@ -444,7 +452,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             </span>
           </button>
 
-          {showConverter && (
+          {showConverter && convGrinderOptions.length > 0 && (
             <div className="mt-3 space-y-3 animate-fade-in">
               {/* Строка: from select + input */}
               <div className="grid grid-cols-2 gap-2">
@@ -455,8 +463,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
                     onChange={(e) => setConvFrom(e.target.value)}
                     className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
                   >
-                    {GRINDER_OPTIONS.map((g) => (
-                      <option key={g.value} value={g.value}>{g.label}</option>
+                    {convGrinderOptions.map((g) => (
+                      <option key={g} value={g}>{g.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
                     ))}
                   </select>
                 </div>
@@ -467,8 +475,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
                     onChange={(e) => setConvTo(e.target.value)}
                     className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
                   >
-                    {GRINDER_OPTIONS.map((g) => (
-                      <option key={g.value} value={g.value}>{g.label}</option>
+                    {convGrinderOptions.map((g) => (
+                      <option key={g} value={g}>{g.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
                     ))}
                   </select>
                 </div>
