@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     Float,
