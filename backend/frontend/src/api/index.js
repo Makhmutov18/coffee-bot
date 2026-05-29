@@ -58,3 +58,17 @@ export async function calculateExtraction(data) {
     body: JSON.stringify(data),
   })
 }
+
+export async function createSpot(spotData) {
+  return apiFetch(`${API_BASE}/api/spots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(spotData),
+  })
+}
+
+export async function generateInvite(spotId) {
+  return apiFetch(`${API_BASE}/api/spots/${spotId}/invite`, {
+    method: 'POST',
+  })
+}

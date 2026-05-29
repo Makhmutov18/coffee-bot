@@ -4,6 +4,7 @@ import BrewTimer from './pages/BrewTimer'
 import Results from './pages/Results'
 import RecipeList from './pages/RecipeList'
 import RecipeDetail from './pages/RecipeDetail'
+import AdminPanel from './pages/AdminPanel'
 import { listUserSpots, getCurrentUser } from './api'
 
 const TABS = [
@@ -11,6 +12,7 @@ const TABS = [
   { key: 'brew', label: 'Заваривание', icon: '⏱️' },
   { key: 'results', label: 'Итоги', icon: '📊' },
   { key: 'recipes', label: 'Архив', icon: '☕' },
+  { key: 'admin', label: 'Управление', icon: '⚙️' },
 ]
 
 export default function App() {
@@ -198,6 +200,9 @@ export default function App() {
             userRole={userRole}
           />
         )}
+        {activeTab === 'admin' && (
+          <AdminPanel />
+        )}
       </main>
 
       {/* Bottom Navigation */}
@@ -211,7 +216,7 @@ export default function App() {
         }}
       >
         <nav className="flex max-w-md mx-auto bg-coffee-900/90 backdrop-blur-lg border border-coffee-800/60 rounded-2xl shadow-xl pointer-events-auto overflow-hidden">
-          {TABS.map((tab) => {
+          {TABS.filter((tab) => tab.key !== 'admin' || userRole === 'owner').map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
