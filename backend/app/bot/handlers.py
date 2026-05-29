@@ -164,6 +164,7 @@ async def _handle_join_spot(
 
         # Загружаем компанию спота
         company = session.query(Company).filter(Company.id == spot.company_id).first()
+        company_name = company.name if company else "Неизвестная сеть"
 
         # Находим или создаём пользователя
         user = session.query(User).filter(User.telegram_id == telegram_id).first()
@@ -177,50 +178,67 @@ async def _handle_join_spot(
             session.add(user)
             session.flush()
 
-        # Если пользователь уже owner этой компании — игнорируем
-        if user.role == UserRole.owner.value and company and user.id == company.owner_id:
-            await message.answer(
-                "👑 <b>Вы уже владелец этой сети</b>\n\n"
-                f"Точка «{spot.name}» принадлежит вашей компании. "
-                "Вы можете управлять ею через Mini App.",
+        # Проверяем, есть ли уже связь с этим спотом
+        already_attached = (
+            session.query(user_spots)
+            .filter(
+                user_spots.c.user_id == user.id,
+                user_spots.c.spot_id == spot.id,
             )
-            return
+            .first()
+        )
 
-        # Если пользователь уже barista/manager и привязан к этому споту — сообщаем
-        if user.role in (UserRole.barista.value, UserRole.manager.value):
-            already_attached = (
-                session.query(user_spots)
-                .filter(
-                    user_spots.c.user_id == user.id,
-                    user_spots.c.spot_id == spot.id,
-                )
-                .first()
-            )
+        # ── Owner / Manager: не меняем роль, но привязываем к споту, если связи нет ──
+        if user.role in (UserRole.owner.value, UserRole.manager.value):
             if already_attached:
                 await message.answer(
-                    "✅ <b>Вы уже добавлены на эту точку</b>\n\n"
-                    f"Вы числитесь как <b>{dict(UserRole.__members__).get(user.role.upper(), user.role)}</b> "
-                    f"на точке «{spot.name}».",
+                    f"✅ <b>Вы уже привязаны к этой точке</b>\n\n"
+                    f"Точка «{spot.name}» сети «{company_name}» уже доступна вам "
+                    f"как <b>{dict(UserRole.__members__).get(user.role.upper(), user.role)}</b>.",
                 )
                 return
 
-        # Меняем роль на barista (если personal) и добавляем связь
+            # Привязываем к споту без смены роли
+            conn = session.connection()
+            conn.execute(
+                user_spots.insert().values(user_id=user.id, spot_id=spot.id),
+            )
+            session.commit()
+            await message.answer(
+                f"🔗 <b>Доступ к точке расширен</b>\n\n"
+                f"Вы добавлены на точку «{spot.name}» сети «{company_name}».\n\n"
+                f"Ваша роль <b>{dict(UserRole.__members__).get(user.role.upper(), user.role)}</b> сохранена. "
+                f"Откройте Brew Lab, и у вас автоматически появится доступ к коммерческим рецептам!",
+            )
+            return
+
+        # ── Barista: если уже привязан — сообщаем ──
+        if user.role == UserRole.barista.value and already_attached:
+            await message.answer(
+                f"✅ <b>Вы уже добавлены на эту точку</b>\n\n"
+                f"Вы числитесь как <b>бариста</b> на точке "
+                f"«{spot.name}» сети «{company_name}».\n\n"
+                f"Откройте Brew Lab, и у вас автоматически появится доступ к коммерческим рецептам!",
+            )
+            return
+
+        # ── Personal (или barista без связи): меняем роль на barista и привязываем ──
         if user.role == UserRole.personal.value:
             user.role = UserRole.barista.value
 
-        # Добавляем запись в user_spots
-        conn = session.connection()
-        conn.execute(
-            user_spots.insert().values(user_id=user.id, spot_id=spot.id),
-        )
+        # Добавляем запись в user_spots (если ещё нет)
+        if not already_attached:
+            conn = session.connection()
+            conn.execute(
+                user_spots.insert().values(user_id=user.id, spot_id=spot.id),
+            )
         session.commit()
 
-        company_name = company.name if company else "Неизвестная сеть"
         await message.answer(
             f"🎉 <b>Успешно!</b>\n\n"
             f"Вы добавлены как <b>бариста</b> на точку "
             f"«{spot.name}» сети «{company_name}».\n\n"
-            f"Откройте Brew Lab, чтобы увидеть рецепты!",
+            f"Откройте Brew Lab, и у вас автоматически появится доступ к коммерческим рецептам!",
         )
 
     except Exception as e:
