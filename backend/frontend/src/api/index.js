@@ -72,3 +72,15 @@ export async function generateInvite(spotId) {
     method: 'POST',
   })
 }
+
+export async function getUserCompany() {
+  return apiFetch(`${API_BASE}/api/user/company`)
+}
+
+export async function createCompany(name) {
+  return apiFetch(`${API_BASE}/api/companies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}

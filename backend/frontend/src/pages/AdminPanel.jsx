@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { listUserSpots, createSpot, generateInvite } from '../api'
+import { listUserSpots, createSpot, generateInvite, getUserCompany, createCompany } from '../api'
 
 export default function AdminPanel() {
+  const [company, setCompany] = useState(null)
+  const [companyLoading, setCompanyLoading] = useState(true)
+  const [companyError, setCompanyError] = useState(null)
+
+  // Create company form
+  const [companyName, setCompanyName] = useState('')
+  const [creatingCompany, setCreatingCompany] = useState(false)
+  const [companyCreateError, setCompanyCreateError] = useState(null)
+
+  // Spots
   const [spots, setSpots] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [spotsLoading, setSpotsLoading] = useState(true)
+  const [spotsError, setSpotsError] = useState(null)
 
   // Create spot form
   const [name, setName] = useState('')
@@ -18,23 +28,61 @@ export default function AdminPanel() {
   const [inviteLinks, setInviteLinks] = useState({})
   const [copiedId, setCopiedId] = useState(null)
 
+  // ── Загрузка компании при монтировании ──
+  useEffect(() => {
+    const loadCompany = async () => {
+      setCompanyLoading(true)
+      setCompanyError(null)
+      try {
+        const data = await getUserCompany()
+        setCompany(data) // null или { id, name, ownerId }
+      } catch (e) {
+        setCompanyError(e.message)
+      } finally {
+        setCompanyLoading(false)
+      }
+    }
+    loadCompany()
+  }, [])
+
+  // ── Загрузка точек (только если компания есть) ──
+  useEffect(() => {
+    if (!company) return
+    loadSpots()
+  }, [company])
+
   const loadSpots = async () => {
-    setLoading(true)
-    setError(null)
+    setSpotsLoading(true)
+    setSpotsError(null)
     try {
       const data = await listUserSpots()
       setSpots(data)
     } catch (e) {
-      setError(e.message)
+      setSpotsError(e.message)
     } finally {
-      setLoading(false)
+      setSpotsLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadSpots()
-  }, [])
+  // ── Создание компании ──
+  const handleCreateCompany = async (e) => {
+    e.preventDefault()
+    if (!companyName.trim()) return
 
+    setCreatingCompany(true)
+    setCompanyCreateError(null)
+    try {
+      const result = await createCompany(companyName.trim())
+      setCompany({ id: result.id, name: result.name, ownerId: result.ownerId })
+      setCompanyName('')
+    } catch (e) {
+      setCompanyCreateError(e.message)
+    } finally {
+      setCreatingCompany(false)
+    }
+  }
+
+  // ── Создание точки ──
   const handleCreateSpot = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -58,6 +106,7 @@ export default function AdminPanel() {
     }
   }
 
+  // ── Генерация инвайта ──
   const handleGenerateInvite = async (spotId) => {
     setInvitingSpotId(spotId)
     try {
@@ -85,16 +134,18 @@ export default function AdminPanel() {
     })
   }
 
-  if (loading) {
-    return <div className="text-center py-8 text-coffee-latte">Загрузка точек...</div>
+  // ── Состояние загрузки компании ──
+  if (companyLoading) {
+    return <div className="text-center py-8 text-coffee-latte">Загрузка...</div>
   }
 
-  if (error) {
+  // ── Ошибка загрузки компании ──
+  if (companyError) {
     return (
       <div className="text-center py-8 space-y-4">
-        <div className="text-red-400">Ошибка: {error}</div>
+        <div className="text-red-400">Ошибка: {companyError}</div>
         <button
-          onClick={loadSpots}
+          onClick={() => window.location.reload()}
           className="px-4 py-2 rounded-lg bg-coffee-brown text-coffee-cream hover:bg-coffee-gold hover:text-coffee-dark transition"
         >
           Повторить
@@ -103,9 +154,53 @@ export default function AdminPanel() {
     )
   }
 
+  // ── Компания ещё не создана — форма регистрации заведения ──
+  if (!company) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-coffee-cream">🏢 Регистрация заведения</h2>
+
+        <div className="bg-coffee-dark rounded-lg p-5 space-y-4">
+          <p className="text-coffee-latte text-sm">
+            Чтобы начать управлять точками, создайте вашу сеть кофеен.
+          </p>
+
+          <form onSubmit={handleCreateCompany} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Название вашей сети кофеен"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg bg-coffee-800/60 border border-coffee-700/50 text-coffee-cream placeholder-coffee-500 focus:outline-none focus:border-coffee-500 text-sm"
+              required
+            />
+
+            {companyCreateError && (
+              <div className="text-red-400 text-sm">{companyCreateError}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={creatingCompany || !companyName.trim()}
+              className="w-full py-2.5 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition disabled:opacity-50 text-sm"
+            >
+              {creatingCompany ? 'Создание...' : '🏢 Создать компанию'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Компания есть — показываем управление точками ──
   return (
     <div className="space-y-8">
-      <h2 className="text-xl font-bold text-coffee-cream">⚙️ Управление точками</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-coffee-cream">⚙️ Управление точками</h2>
+        <span className="text-coffee-latte text-xs bg-coffee-800/60 px-2.5 py-1 rounded-full">
+          {company.name}
+        </span>
+      </div>
 
       {/* ── Форма создания новой точки ── */}
       <div className="bg-coffee-dark rounded-lg p-4 space-y-4">
@@ -156,7 +251,19 @@ export default function AdminPanel() {
           Точки ({spots.length})
         </h3>
 
-        {spots.length === 0 ? (
+        {spotsLoading ? (
+          <div className="text-center py-8 text-coffee-latte">Загрузка точек...</div>
+        ) : spotsError ? (
+          <div className="text-center py-8 space-y-4">
+            <div className="text-red-400">Ошибка: {spotsError}</div>
+            <button
+              onClick={loadSpots}
+              className="px-4 py-2 rounded-lg bg-coffee-brown text-coffee-cream hover:bg-coffee-gold hover:text-coffee-dark transition"
+            >
+              Повторить
+            </button>
+          </div>
+        ) : spots.length === 0 ? (
           <div className="text-center py-8 text-coffee-latte">
             <p>У вас пока нет созданных точек.</p>
           </div>

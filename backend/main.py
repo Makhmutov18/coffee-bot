@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from app.api import setup_api_routes
 from app.auth import tg_auth_middleware
 from app.bot.handlers import router
+from app.database import init_db
 
 load_dotenv()
 
@@ -138,6 +139,15 @@ async def main() -> None:
             "BOT_TOKEN не задан! Укажи его в переменной окружения."
         )
         return
+
+    # ── Инициализация базы данных (create_all + миграции) ──
+    try:
+        session = init_db()
+        session.close()
+        logger.info("База данных успешно инициализирована (таблицы созданы/проверены)")
+    except Exception as e:
+        logger.error("Ошибка инициализации базы данных: %s", e)
+        raise
 
     # Регистрируем обработчик SIGTERM
     loop = asyncio.get_running_loop()

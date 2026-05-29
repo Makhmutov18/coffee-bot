@@ -101,6 +101,80 @@ async def handle_get_current_user(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# GET /api/user/company — информация о компании текущего пользователя
+# ──────────────────────────────────────────────
+
+async def handle_get_user_company(request: web.Request) -> web.Response:
+    """Вернуть информацию о компании текущего пользователя (или null)."""
+    user = await get_current_user(request)
+    if not user.company:
+        return web.json_response(None)
+    return web.json_response({
+        "id": user.company.id,
+        "name": user.company.name,
+        "ownerId": user.company.owner_id,
+    })
+
+
+# ──────────────────────────────────────────────
+# POST /api/companies — создать компанию (для owner)
+# ──────────────────────────────────────────────
+
+async def handle_create_company(request: web.Request) -> web.Response:
+    """Создать новую компанию для текущего пользователя."""
+    user = await get_current_user(request)
+
+    if user.role != UserRole.owner.value:
+        return web.json_response(
+            {"error": "Только владелец сети может создавать компанию"},
+            status=403,
+        )
+
+    if user.company:
+        return web.json_response(
+            {"error": "У вас уже есть компания"},
+            status=400,
+        )
+
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    name = data.get("name", "").strip()
+    if not name:
+        return web.json_response(
+            {"error": "Название компании обязательно"},
+            status=400,
+        )
+
+    session = init_db()
+    try:
+        company = Company(name=name, owner_id=user.id)
+        session.add(company)
+        session.commit()
+        session.refresh(company)
+
+        logger.info(
+            "Company created: id=%s, name='%s', owner_id=%s",
+            company.id, company.name, company.owner_id,
+        )
+
+        return web.json_response({
+            "id": company.id,
+            "name": company.name,
+            "ownerId": company.owner_id,
+            "message": "Компания создана!",
+        }, status=201)
+    except Exception as e:
+        session.rollback()
+        logger.error("Error creating company: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
+
+# ──────────────────────────────────────────────
 # GET /api/user/spots — список доступных точек
 # ──────────────────────────────────────────────
 
@@ -501,7 +575,9 @@ async def handle_calculate(request: web.Request) -> web.Response:
 def setup_api_routes(app: web.Application) -> None:
     """Подключить API-маршруты к aiohttp приложению."""
     app.router.add_get("/api/user/me", handle_get_current_user)
+    app.router.add_get("/api/user/company", handle_get_user_company)
     app.router.add_get("/api/user/spots", handle_list_user_spots)
+    app.router.add_post("/api/companies", handle_create_company)
     app.router.add_post("/api/spots", handle_create_spot)
     app.router.add_post("/api/spots/{id}/invite", handle_generate_invite)
     app.router.add_post("/api/recipes", handle_save_recipe)
@@ -511,8 +587,8 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_post("/api/calculate", handle_calculate)
     logger.info(
         "API routes registered: "
-        "GET /api/user/me, GET /api/user/spots, "
-        "POST /api/spots, POST /api/spots/{id}/invite, "
+        "GET /api/user/me, GET /api/user/company, GET /api/user/spots, "
+        "POST /api/companies, POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
         "POST /api/calculate"
     )
