@@ -187,7 +187,18 @@ async def handle_list_user_spots(request: web.Request) -> web.Response:
 
     if user.role == UserRole.owner.value and user.company:
         spots = user.company.spots
-    elif user.role in (UserRole.barista.value, UserRole.manager.value):
+    elif user.role == UserRole.barista.value:
+        # Бариста видит ВСЕ споты своей компании (для ротации между точками)
+        if user.accessible_spots:
+            company_id = user.accessible_spots[0].company_id
+            session = init_db()
+            try:
+                spots = session.query(Spot).filter(Spot.company_id == company_id).all()
+            finally:
+                session.close()
+        else:
+            spots = []
+    elif user.role == UserRole.manager.value:
         spots = user.accessible_spots
     else:
         spots = []

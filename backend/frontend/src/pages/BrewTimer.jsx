@@ -81,8 +81,11 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
         )}
       </div>
 
-      {/* ГИГАНТСКИЙ ТАЙМЕР */}
-      <div className="relative w-64 h-64 flex flex-col items-center justify-center rounded-full bg-gradient-to-b from-coffee-900/30 to-coffee-950 border border-coffee-800/40 shadow-2xl">
+      {/* ГИГАНТСКИЙ ТАЙМЕР — тап для старт/стоп */}
+      <div
+        onClick={finished ? undefined : (running ? handlePause : handleStart)}
+        className="relative w-64 h-64 flex flex-col items-center justify-center rounded-full bg-gradient-to-b from-coffee-900/30 to-coffee-950 border border-coffee-800/40 shadow-2xl cursor-pointer active:scale-[0.97] transition-transform select-none"
+      >
         {running && (
           <div className="absolute inset-0 rounded-full bg-coffee-500/5 animate-ping pointer-events-none" />
         )}
@@ -90,7 +93,10 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
           {formatTime(time)}
         </span>
         <span className="text-xs uppercase tracking-widest text-coffee-400 font-medium mt-2">
-          {pouredVolume > 0 ? `Влито: ${pouredVolume} / ${recipe?.totalWater || 0} мл` : 'Ожидание...'}
+          {!running && !finished && time === 0 && 'Тапните, чтобы начать'}
+          {!running && !finished && time > 0 && 'Тапните, чтобы продолжить'}
+          {running && (pouredVolume > 0 ? `Влито: ${pouredVolume} / ${recipe?.totalWater || 0} мл` : 'Варим...')}
+          {finished && 'Готово!'}
         </span>
       </div>
 

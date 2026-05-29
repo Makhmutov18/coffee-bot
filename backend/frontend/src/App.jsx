@@ -165,7 +165,7 @@ export default function App() {
               onChange={handleSpotChange}
               className="flex-1 min-w-0 max-w-[200px] text-xs bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-coffee-200 focus:outline-none focus:border-coffee-500"
             >
-              <option value="">Личное</option>
+              {userRole !== 'barista' && <option value="">Личное</option>}
               {spots.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
