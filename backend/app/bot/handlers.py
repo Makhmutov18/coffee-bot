@@ -18,7 +18,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-from app.database import Recipe, Measurement, calculate_extraction, init_db
+from app.database import Recipe, Measurement, User, UserRole, calculate_extraction, init_db
 
 # URL Mini App (берётся из переменной окружения или Railway URL по умолчанию)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app")
@@ -85,6 +85,30 @@ yes_no_kb = ReplyKeyboardMarkup(
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
+    # Регистрация / авторизация пользователя
+    telegram_id = str(message.from_user.id)
+    name = message.from_user.first_name
+    username = message.from_user.username
+
+    session = init_db()
+    try:
+        existing = session.query(User).filter(User.telegram_id == telegram_id).first()
+        if not existing:
+            user = User(
+                telegram_id=telegram_id,
+                name=name,
+                username=username,
+                role=UserRole.personal.value,
+            )
+            session.add(user)
+            session.commit()
+            logger.info("New user registered: telegram_id=%s, name=%s", telegram_id, name)
+    except Exception as e:
+        session.rollback()
+        logger.error("Error registering user: %s", e)
+    finally:
+        session.close()
+
     # Кнопка Mini App
     webapp_kb = InlineKeyboardMarkup(
         inline_keyboard=[
