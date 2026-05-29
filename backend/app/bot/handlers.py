@@ -17,7 +17,8 @@ from aiogram.types import (
 from app.database import User, UserRole, Spot, Company, user_spots, init_db
 
 # URL Mini App (берётся из переменной окружения или Railway URL по умолчанию)
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app")
+# ВАЖНО: суффикс /app обязателен — на корне теперь лендинг
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app") + "/app"
 
 logger = logging.getLogger(__name__)
 

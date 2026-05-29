@@ -59,7 +59,7 @@ async def cors_middleware(request: web.Request, handler) -> web.Response:
     else:
         response = await handler(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE, PATCH"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-TG-Init-Data"
     return response
 
@@ -92,6 +92,9 @@ async def run_health_server() -> None:
             append_version=False,
         )
         app.router.add_get("/", handle_frontend)
+        # SPA fallback — /app и вложенные пути отдают index.html для клиентского роутинга
+        app.router.add_get("/app", handle_frontend)
+        app.router.add_get("/app/{tail:.*}", handle_frontend)
         logger.info("Frontend static files served from %s", frontend_dist)
     else:
         logger.warning("Frontend dist not found at %s", frontend_dist)
