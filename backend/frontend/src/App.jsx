@@ -74,6 +74,7 @@ export default function App() {
       totalWater: r.totalWater,
       waterTemp: r.waterTemp || '',
       waterTds: r.waterTds || '',
+      brewTime: r.brewTime || '',
       pourSteps: (r.pourSteps || []).map((s) => ({
         time: s.time,
         action: s.action,
@@ -94,7 +95,7 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 pb-24">
+      <main className="flex-1 overflow-y-auto px-4 py-6">
         {activeTab === 'recipe' && (
           <NewRecipe
             key={repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
@@ -134,7 +135,15 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-coffee-950 via-coffee-950/95 to-transparent pointer-events-none">
+      <div
+        className="sticky bottom-0 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-coffee-950 via-coffee-950/95 to-transparent pointer-events-none"
+        onPointerDown={(e) => {
+          // Hide keyboard on tap outside inputs
+          if (e.target === e.currentTarget || e.target.tagName !== 'INPUT') {
+            document.activeElement?.blur()
+          }
+        }}
+      >
         <nav className="flex max-w-md mx-auto bg-coffee-900/90 backdrop-blur-lg border border-coffee-800/60 rounded-2xl shadow-xl pointer-events-auto overflow-hidden">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;

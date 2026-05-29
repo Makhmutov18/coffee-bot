@@ -57,6 +57,9 @@ class Recipe(Base):
     water_temp = Column(Float, nullable=True, comment="Температура воды, °C")
     water_tds = Column(Float, nullable=True, comment="Минерализация воды, ppm")
 
+    # Общее время заваривания (секунды)
+    brew_time = Column(Integer, nullable=True, comment="Общее время заваривания в секундах")
+
     # Шаги вливаний (JSON-массив)
     _pour_steps = Column("pour_steps", String, nullable=True, comment="Массив шагов вливаний в JSON")
 

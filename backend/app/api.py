@@ -36,6 +36,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
             water_tds=float(data["waterTds"]) if data.get("waterTds") else None,
             pour_steps=data.get("pourSteps", []),
             tasting_notes=data.get("tastingNotes"),
+            brew_time=data.get("brewTime"),
         )
         session.add(recipe)
         session.flush()
@@ -99,6 +100,7 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
                 "totalWater": r.total_water,
                 "waterTemp": r.water_temp,
                 "waterTds": r.water_tds,
+                "brewTime": r.brew_time,
                 "pourSteps": r.pour_steps,
                 "tastingNotes": r.tasting_notes,
                 "lastMeasurement": last_measurement,
@@ -143,6 +145,7 @@ async def handle_get_recipe(request: web.Request) -> web.Response:
             "totalWater": r.total_water,
             "waterTemp": r.water_temp,
             "waterTds": r.water_tds,
+            "brewTime": r.brew_time,
             "pourSteps": r.pour_steps,
             "tastingNotes": r.tasting_notes,
             "measurements": measurements,

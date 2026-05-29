@@ -103,6 +103,7 @@ export default function NewRecipe({ onSave, initialData }) {
     totalWater: '',
     waterTemp: '',
     waterTds: '',
+    brewTime: '',
     pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
   })
 
@@ -125,6 +126,7 @@ export default function NewRecipe({ onSave, initialData }) {
         totalWater: initialData.totalWater?.toString() || '',
         waterTemp: initialData.waterTemp?.toString() || '',
         waterTds: initialData.waterTds?.toString() || '',
+        brewTime: initialData.brewTime?.toString() || '',
         pourSteps: (initialData.pourSteps && initialData.pourSteps.length > 0)
           ? initialData.pourSteps.map((s) => ({
               time: s.time?.toString() || '',
@@ -209,6 +211,14 @@ export default function NewRecipe({ onSave, initialData }) {
       totalWater: parseFloat(form.totalWater),
       waterTemp: form.waterTemp ? parseFloat(form.waterTemp) : undefined,
       waterTds: form.waterTds ? parseFloat(form.waterTds) : undefined,
+      brewTime: form.brewTime ? (() => {
+        const t = form.brewTime.trim()
+        if (t.includes(':')) {
+          const parts = t.split(':')
+          return parseInt(parts[0] || 0) * 60 + parseInt(parts[1] || 0)
+        }
+        return parseInt(t) || undefined
+      })() : undefined,
       pourSteps: steps,
     })
   }
@@ -375,6 +385,17 @@ export default function NewRecipe({ onSave, initialData }) {
             value={form.waterTds}
             onChange={handleChange('waterTds')}
             placeholder="50"
+          />
+        </div>
+
+        {/* Общее время заваривания */}
+        <div>
+          <label className="text-xs text-coffee-300 font-medium mb-1 block">Общее время заваривания (MM:SS)</label>
+          <input
+            type="text"
+            value={form.brewTime}
+            onChange={handleChange('brewTime')}
+            placeholder="3:30"
           />
         </div>
       </div>

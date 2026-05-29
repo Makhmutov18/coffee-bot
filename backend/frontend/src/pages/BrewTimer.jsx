@@ -13,9 +13,8 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
   const intervalRef = useRef(null)
 
   const steps = recipe?.pourSteps || []
-  const totalTime = steps.length > 0
-    ? Math.max(...steps.map((s) => s.time)) + 30
-    : 180
+  const totalTime = recipe?.brewTime
+    || (steps.length > 0 ? Math.max(...steps.map((s) => s.time)) + 30 : 180)
 
   // Timer logic
   useEffect(() => {
@@ -52,13 +51,13 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
   const currentStep = steps[currentStepIndex]
   const nextStep = steps[currentStepIndex + 1]
 
-  // Calculate total brew time from last step
-  const lastStepTime = steps.length > 0 ? steps[steps.length - 1].time : 0
-  const brewTotalMinutes = Math.floor(lastStepTime / 60)
-  const brewTotalSeconds = lastStepTime % 60
+  // Calculate total brew time from recipe.brewTime or last step
+  const displayBrewTime = recipe?.brewTime || (steps.length > 0 ? steps[steps.length - 1].time : 0)
+  const brewTotalMinutes = Math.floor(displayBrewTime / 60)
+  const brewTotalSeconds = displayBrewTime % 60
   const brewTotalStr = brewTotalMinutes > 0
     ? `${brewTotalMinutes} мин ${brewTotalSeconds} сек`
-    : `${lastStepTime} сек`
+    : `${displayBrewTime} сек`
 
   // Calculate total poured volume so far
   const pouredVolume = steps
