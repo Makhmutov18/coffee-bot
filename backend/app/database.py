@@ -257,35 +257,36 @@ class Measurement(Base):
 
 
 # ──────────────────────────────────────────────
-# Таблица просеивания (конвертация кофемолок)
+# Ситовый анализ (конвертация кофемолок по фракциям)
 # ──────────────────────────────────────────────
 
-class GrinderMapping(Base):
+class SieveAnalysis(Base):
     """
-    Таблица просеивания для конвертации помола между кофемолками.
+    Таблица ситового анализа для конвертации помола между кофемолками.
 
-    Каждая строка соответствует определённому диапазону микрон (micron_range)
-    и методу заваривания (method). Значения в колонках кофемолок — это
-    строковые диапазоны (например, '19-22 clicks', '5.6-7.2', '33+ clicks').
+    Каждая строка соответствует одной настройке конкретной кофемолки.
+    Четыре колонки pct_* — это процент частиц по массе, попадающих
+    в соответствующий диапазон микрон (>900, 900-600, 600-300, <300).
+
+    Алгоритм конвертации: найти настройку на целевой кофемолке
+    с максимально похожим распределением фракций (минимальное
+    евклидово расстояние между 4-мерными векторами).
     """
 
-    __tablename__ = "grinder_mappings"
+    __tablename__ = "sieve_analysis"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    micron_range = Column(String(32), nullable=False, comment="Диапазон микрон, например '550-700'")
-    method = Column(String(128), nullable=True, comment="Метод заваривания")
+    grinder_name = Column(String(64), nullable=False, index=True, comment="Короткое имя кофемолки (comandante_c40, timemore_c2, ...)")
+    grind_setting = Column(String(64), nullable=False, comment="Настройка помола (например, '2 оборота + 1', '15', '3.5')")
 
-    # Кофемолки (строковые диапазоны, nullable — если не рекомендуется)
-    comandante_c40 = Column(String(64), nullable=True, comment="Comandante C40")
-    mahlkonig_ek43 = Column(String(64), nullable=True, comment="Mahlkönig EK43")
-    timemore_c2 = Column(String(64), nullable=True, comment="Timemore C2")
-    kingrinder_k6 = Column(String(64), nullable=True, comment="Kingrinder K6")
-    mischief_m40 = Column(String(64), nullable=True, comment="Mischief M40")
-    onezpresso_zp6 = Column(String(64), nullable=True, comment="1Zpresso ZP6")
-    fellow_ode_v2 = Column(String(64), nullable=True, comment="Fellow Ode V2")
+    # Процент частиц по массе в каждом диапазоне микрон
+    pct_gt_900 = Column(Float, nullable=False, comment="% частиц >900 микрон")
+    pct_900_600 = Column(Float, nullable=False, comment="% частиц 900-600 микрон")
+    pct_600_300 = Column(Float, nullable=False, comment="% частиц 600-300 микрон")
+    pct_lt_300 = Column(Float, nullable=False, comment="% частиц <300 микрон")
 
     def __repr__(self) -> str:
-        return f"<GrinderMapping(id={self.id}, micron={self.micron_range})>"
+        return f"<SieveAnalysis(grinder='{self.grinder_name}', setting='{self.grind_setting}')>"
 
 
 # ──────────────────────────────────────────────
@@ -409,21 +410,20 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 
-def _seed_grinder_mappings(engine) -> None:
+def _seed_sieve_analysis(engine) -> None:
     """
-    Полная перезаливка таблицы grinder_mappings из JSON-файла grinders_data.json.
+    Полная перезаливка таблицы sieve_analysis из JSON-файла sieve_data.json.
 
     При каждом старте:
       1. Удаляет ВСЕ старые записи (DELETE).
-      2. Вставляет 20 детализированных диапазонов из нового JSON.
+      2. Вставляет данные ситового анализа из нового JSON.
     """
     # Путь к JSON-файлу относительно backend/
-    json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "grinders_data.json")
+    json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "sieve_data.json")
     if not os.path.exists(json_path):
-        # Fallback: ищем рядом с проектом
-        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "newfile", "grinders_data.json")
+        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "newfile", "sieve_data.json")
     if not os.path.exists(json_path):
-        logger.warning("grinders_data.json not found at %s, skipping seed", json_path)
+        logger.warning("sieve_data.json not found at %s, skipping seed", json_path)
         return
 
     with open(json_path, "r", encoding="utf-8") as f:
@@ -431,92 +431,36 @@ def _seed_grinder_mappings(engine) -> None:
 
     with Session(bind=engine) as s:
         try:
-            # 1. Очищаем старые записи
-            deleted = s.query(GrinderMapping).delete()
+            deleted = s.query(SieveAnalysis).delete()
             s.flush()
-            logger.info("GrinderMapping: deleted %d old rows", deleted)
+            logger.info("SieveAnalysis: deleted %d old rows", deleted)
 
-            # 2. Вставляем новые 20 строк
             for row in seed_data:
-                mapping = GrinderMapping(
-                    micron_range=row.get("micron_range"),
-                    method=row.get("method"),
-                    comandante_c40=row.get("comandante_c40"),
-                    mahlkonig_ek43=row.get("mahlkonig_ek43"),
-                    timemore_c2=row.get("timemore_c2"),
-                    kingrinder_k6=row.get("kingrinder_k6"),
-                    mischief_m40=row.get("mischief_m40"),
-                    onezpresso_zp6=row.get("onezpresso_zp6"),
-                    fellow_ode_v2=row.get("fellow_ode_v2"),
+                entry = SieveAnalysis(
+                    grinder_name=row.get("grinder_name"),
+                    grind_setting=row.get("grind_setting"),
+                    pct_gt_900=row.get("pct_gt_900", 0.0),
+                    pct_900_600=row.get("pct_900_600", 0.0),
+                    pct_600_300=row.get("pct_600_300", 0.0),
+                    pct_lt_300=row.get("pct_lt_300", 0.0),
                 )
-                s.add(mapping)
+                s.add(entry)
             s.commit()
-            logger.info("GrinderMapping seeded with %d rows from %s", len(seed_data), json_path)
+            logger.info("SieveAnalysis seeded with %d rows from %s", len(seed_data), json_path)
         except Exception:
             s.rollback()
-            logger.exception("GrinderMapping seed failed")
+            logger.exception("SieveAnalysis seed failed")
             raise
 
 
-def _parse_range_value(value_str: str) -> tuple[float, float] | None:
-    """
-    Парсит строковое значение кофемолки в числовой диапазон (low, high).
+def _sieve_vector(row: SieveAnalysis) -> list[float]:
+    """Вернуть 4-мерный вектор фракций для строки ситового анализа."""
+    return [row.pct_gt_900, row.pct_900_600, row.pct_600_300, row.pct_lt_300]
 
-    Поддерживает форматы (регистронезависимо):
-      - '19-22 clicks' → (19.0, 22.0)
-      - '5.6-7.2'      → (5.6, 7.2)
-      - '33+ clicks'   → (33.0, inf)
-      - '8.6+'         → (8.6, inf)
-      - '17 clicks'    → (17.0, 17.0)  # одиночное число
-      - '14'           → (14.0, 14.0)
-      - 'не рекомендуется' → None
-      - None / ''      → None
-    """
-    if not value_str:
-        return None
-    s = value_str.strip()
-    if not s:
-        return None
 
-    # Проверка на "не рекомендуется" (регистронезависимо)
-    s_lower = s.lower()
-    if s_lower == "не рекомендуется" or s_lower == "не рекоменд.":
-        return None
-
-    # Убираем единицы измерения (clicks, об., оборотов, деления, дел.)
-    for suffix in [" clicks", " об.", " оборотов", " деления", " дел."]:
-        idx = s_lower.find(suffix)
-        if idx != -1:
-            s = s[:idx]
-            break
-    s = s.strip()
-    if not s:
-        return None
-
-    # Парсим диапазон с плюсом: "33+" или "8.6+"
-    if s.endswith("+"):
-        try:
-            low = float(s[:-1].strip())
-            return (low, float("inf"))
-        except (ValueError, TypeError):
-            return None
-
-    # Парсим диапазон с дефисом: "19-22" или "5.6-7.2"
-    if "-" in s:
-        parts = s.split("-", 1)
-        try:
-            low = float(parts[0].strip())
-            high = float(parts[1].strip())
-            return (low, high)
-        except (ValueError, TypeError):
-            return None
-
-    # Одиночное число
-    try:
-        v = float(s)
-        return (v, v)
-    except (ValueError, TypeError):
-        return None
+def _euclidean_distance(a: list[float], b: list[float]) -> float:
+    """Евклидово расстояние между двумя 4-мерными векторами."""
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
 
 
 def convert_grinder_value(
@@ -525,96 +469,89 @@ def convert_grinder_value(
     value: str,
 ) -> dict | None:
     """
-    Конвертировать значение помола между кофемолками через таблицу просеивания.
+    Конвертировать значение помола между кофемолками через ситовый анализ.
+
+    Алгоритм:
+      1. Найти настройку на исходной кофемолке, максимально близкую
+         к переданному значению (по евклидову расстоянию вектора фракций).
+      2. Взять вектор фракций этой настройки.
+      3. Найти настройку на целевой кофемолке с минимальным евклидовым
+         расстоянием до этого вектора.
 
     СИНХРОННАЯ функция — ВСЕГДА создаёт свою сессию.
-    Должна вызываться через asyncio.to_thread() из async-хендлера,
-    чтобы не блокировать event loop.
+    Должна вызываться через asyncio.to_thread() из async-хендлера.
 
     Параметры
     ---------
     from_grinder : str
-        Имя колонки исходной кофемолки (например, 'comandante_c40').
+        Имя исходной кофемолки (например, 'comandante_c40').
     to_grinder : str
-        Имя колонки целевой кофемолки (например, 'timemore_c2').
+        Имя целевой кофемолки (например, 'timemore_c2').
     value : str
-        Строковое значение на исходной кофемолке (например, '20' или '19-22').
+        Значение на исходной кофемолке (например, '2 оборота + 1' или '20').
 
     Возвращает
     ----------
     dict | None
-        { 'from_grinder': ..., 'to_grinder': ..., 'from_value': ..., 'to_value': ...,
-          'micron_range': ..., 'method': ... } или None, если конвертация невозможна.
+        { 'from_grinder', 'to_grinder', 'from_value', 'to_value',
+          'from_vector', 'to_vector' } или None.
     """
-    from_col = getattr(GrinderMapping, from_grinder, None)
-    to_col = getattr(GrinderMapping, to_grinder, None)
-    if from_col is None or to_col is None:
-        logger.warning("Unknown grinder column: %s or %s", from_grinder, to_grinder)
-        return None
-
-    # Парсим переданное значение
-    parsed_input = _parse_range_value(value)
-    if parsed_input is None:
-        return None
-    input_low, input_high = parsed_input
-    # Берём среднюю точку для поиска
-    input_mid = (input_low + input_high) / 2 if input_high != float("inf") else input_low
-
     engine = init_engine()
     with Session(bind=engine) as s:
         try:
-            # Загружаем все строки, где from_grinder колонка не NULL
-            all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).all()
-            if not all_rows:
+            # 1. Ищем настройку на исходной кофемолке
+            from_rows = (
+                s.query(SieveAnalysis)
+                .filter(SieveAnalysis.grinder_name == from_grinder)
+                .all()
+            )
+            if not from_rows:
+                logger.warning("No sieve data for grinder: %s", from_grinder)
                 return None
 
-            # Для каждой строки парсим её значение и ищем, куда попадает input_mid
-            best_match = None
-            best_distance = float("inf")
-
-            for row in all_rows:
-                row_raw = getattr(row, from_grinder)
-                if row_raw is None:
-                    continue
-                row_range = _parse_range_value(row_raw)
-                if row_range is None:
-                    continue
-                row_low, row_high = row_range
-
-                # Проверяем, попадает ли input_mid в диапазон строки
-                if row_low <= input_mid <= row_high:
-                    # Точное попадание
-                    best_match = row
+            # Ищем строку, где grind_setting максимально похож на value
+            # (сначала точное совпадение, потом частичное)
+            best_from = None
+            for row in from_rows:
+                if row.grind_setting.strip().lower() == value.strip().lower():
+                    best_from = row
                     break
-                else:
-                    # Ищем ближайший
-                    row_mid = (row_low + row_high) / 2 if row_high != float("inf") else row_low
-                    dist = abs(row_mid - input_mid)
-                    if dist < best_distance:
-                        best_distance = dist
-                        best_match = row
+            if best_from is None:
+                # Частичное совпадение: value содержится в grind_setting
+                v_lower = value.strip().lower()
+                for row in from_rows:
+                    if v_lower in row.grind_setting.lower():
+                        best_from = row
+                        break
+            if best_from is None:
+                # Берём первую строку (fallback)
+                best_from = from_rows[0]
 
-            if best_match is None:
+            from_vector = _sieve_vector(best_from)
+
+            # 2. Ищем настройку на целевой кофемолке с минимальным расстоянием
+            to_rows = (
+                s.query(SieveAnalysis)
+                .filter(SieveAnalysis.grinder_name == to_grinder)
+                .all()
+            )
+            if not to_rows:
+                logger.warning("No sieve data for grinder: %s", to_grinder)
                 return None
 
-            to_value_raw = getattr(best_match, to_grinder)
-            if to_value_raw is None:
-                return {
-                    "from_grinder": from_grinder,
-                    "to_grinder": to_grinder,
-                    "from_value": value,
-                    "to_value": "Не рекомендуется",
-                    "micron_range": best_match.micron_range,
-                    "method": best_match.method,
-                }
+            best_to = min(
+                to_rows,
+                key=lambda r: _euclidean_distance(from_vector, _sieve_vector(r)),
+            )
+            to_vector = _sieve_vector(best_to)
 
             return {
                 "from_grinder": from_grinder,
                 "to_grinder": to_grinder,
-                "from_value": value,
-                "to_value": to_value_raw,
-                "micron_range": best_match.micron_range,
-                "method": best_match.method,
+                "from_value": best_from.grind_setting,
+                "to_value": best_to.grind_setting,
+                "from_vector": from_vector,
+                "to_vector": to_vector,
             }
         finally:
             s.close()
@@ -628,7 +565,7 @@ def init_database() -> None:
     engine = init_engine()
     Base.metadata.create_all(engine)
     _migrate_existing_tables(engine)
-    _seed_grinder_mappings(engine)
+    _seed_sieve_analysis(engine)
     logger.info("Database tables created/verified")
 
 
