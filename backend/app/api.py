@@ -192,8 +192,9 @@ async def handle_list_user_spots(request: web.Request) -> web.Response:
     else:
         spots = []
 
-    result = [
-        {
+    result = []
+    for s in spots:
+        spot_data = {
             "id": s.id,
             "name": s.name,
             "address": s.address,
@@ -201,8 +202,18 @@ async def handle_list_user_spots(request: web.Request) -> web.Response:
             "grinderModel": s.grinder_model,
             "companyId": s.company_id,
         }
-        for s in spots
-    ]
+        # Для owner добавляем список сотрудников на точке
+        if user.role == UserRole.owner.value:
+            spot_data["staff"] = [
+                {
+                    "telegramId": staff.telegram_id,
+                    "name": staff.name,
+                    "username": staff.username,
+                    "role": staff.role,
+                }
+                for staff in s.staff
+            ]
+        result.append(spot_data)
     return web.json_response(result)
 
 

@@ -313,6 +313,37 @@ export default function AdminPanel() {
                     </div>
                   )}
                 </div>
+
+                {/* Сотрудники на точке */}
+                {spot.staff && (
+                  <div className="border-t border-coffee-800/60 pt-3 space-y-2">
+                    <div className="text-coffee-latte text-xs font-medium">👥 Сотрудники на точке</div>
+                    {spot.staff.length === 0 ? (
+                      <div className="text-coffee-500 text-xs">
+                        Сотрудников пока нет, сгенерируйте инвайт-ссылку выше
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {spot.staff.map((staff) => (
+                          <span
+                            key={staff.telegramId}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-coffee-800/60 text-coffee-latte text-xs"
+                          >
+                            <span>👤</span>
+                            <span>{staff.name || staff.username || staff.telegramId}</span>
+                            {staff.username && (
+                              <span className="text-coffee-500">@{staff.username}</span>
+                            )}
+                            <span className="text-coffee-500">—</span>
+                            <span className={staff.role === 'manager' ? 'text-coffee-gold' : ''}>
+                              {staff.role === 'manager' ? 'Менеджер' : 'Бариста'}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
