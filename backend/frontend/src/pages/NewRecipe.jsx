@@ -88,7 +88,7 @@ const GRINDERS = [
   'Другая...',
 ]
 
-export default function NewRecipe({ onSave, initialData }) {
+export default function NewRecipe({ onSave, initialData, spotId }) {
   const [form, setForm] = useState({
     name: '',
     roaster: '',
@@ -199,7 +199,7 @@ export default function NewRecipe({ onSave, initialData }) {
           comment: s.comment || undefined,
         }
       })
-    onSave({
+    const recipeData = {
       name: form.name || undefined,
       roaster: form.roaster || undefined,
       beanVariety: form.beanVariety,
@@ -220,7 +220,11 @@ export default function NewRecipe({ onSave, initialData }) {
         return parseInt(t) || undefined
       })() : undefined,
       pourSteps: steps,
-    })
+    }
+    if (spotId) {
+      recipeData.spotId = spotId
+    }
+    onSave(recipeData)
   }
 
   return (

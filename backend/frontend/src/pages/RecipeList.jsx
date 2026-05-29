@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { listRecipes } from '../api'
 
-export default function RecipeList({ onSelectRecipe, onNewRecipe }) {
+export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId }) {
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     loadRecipes()
-  }, [])
+  }, [spotId])
 
   const loadRecipes = async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await listRecipes()
+      const data = await listRecipes(spotId)
       setRecipes(data)
     } catch (e) {
       setError(e.message)

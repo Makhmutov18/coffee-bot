@@ -4,6 +4,7 @@ import BrewTimer from './pages/BrewTimer'
 import Results from './pages/Results'
 import RecipeList from './pages/RecipeList'
 import RecipeDetail from './pages/RecipeDetail'
+import { listUserSpots } from './api'
 
 const TABS = [
   { key: 'recipe', label: 'Рецепт', icon: '📝' },
@@ -18,12 +19,48 @@ export default function App() {
   const [brewResults, setBrewResults] = useState(null)
   const [selectedRecipeId, setSelectedRecipeId] = useState(null)
   const [repeatRecipe, setRepeatRecipe] = useState(null)
+  const [spots, setSpots] = useState([])
+  const [selectedSpotId, setSelectedSpotId] = useState(null)
 
   useEffect(() => {
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
       tg.expand()
       tg.ready()
+    }
+  }, [])
+
+  // Load user spots on mount
+  useEffect(() => {
+    const savedSpotId = localStorage.getItem('selectedSpotId')
+    if (savedSpotId) {
+      setSelectedSpotId(parseInt(savedSpotId, 10))
+    }
+
+    listUserSpots()
+      .then((data) => {
+        setSpots(data)
+        // If saved spot is no longer available, reset
+        if (data.length > 0 && savedSpotId) {
+          const stillAvailable = data.some((s) => s.id === parseInt(savedSpotId, 10))
+          if (!stillAvailable) {
+            setSelectedSpotId(null)
+            localStorage.removeItem('selectedSpotId')
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail — user may be personal role
+      })
+  }, [])
+
+  const handleSpotChange = useCallback((e) => {
+    const value = e.target.value ? parseInt(e.target.value, 10) : null
+    setSelectedSpotId(value)
+    if (value) {
+      localStorage.setItem('selectedSpotId', value)
+    } else {
+      localStorage.removeItem('selectedSpotId')
     }
   }, [])
 
@@ -88,10 +125,26 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-coffee-950 text-coffee-100 selection:bg-coffee-500/30">
       {/* Header */}
-      <header className="px-4 py-4 bg-coffee-900/60 backdrop-blur-md border-b border-coffee-800/40 sticky top-0 z-50">
-        <h1 className="text-md font-medium tracking-wide text-coffee-200 text-center uppercase">
-          ✦ Brew Lab ✦
-        </h1>
+      <header className="px-4 py-3 bg-coffee-900/60 backdrop-blur-md border-b border-coffee-800/40 sticky top-0 z-50">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-md font-medium tracking-wide text-coffee-200 uppercase shrink-0">
+            ✦ Brew Lab ✦
+          </h1>
+          {spots.length > 0 && (
+            <select
+              value={selectedSpotId ?? ''}
+              onChange={handleSpotChange}
+              className="flex-1 min-w-0 max-w-[200px] text-xs bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-coffee-200 focus:outline-none focus:border-coffee-500"
+            >
+              <option value="">Личное</option>
+              {spots.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </header>
 
       {/* Content */}
@@ -101,6 +154,7 @@ export default function App() {
             key={repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
             onSave={handleRecipeSave}
             initialData={repeatRecipe}
+            spotId={selectedSpotId}
           />
         )}
         {activeTab === 'brew' && (
@@ -123,6 +177,7 @@ export default function App() {
           <RecipeList
             onSelectRecipe={handleSelectRecipe}
             onNewRecipe={handleNewRecipe}
+            spotId={selectedSpotId}
           />
         )}
         {activeTab === 'recipes' && selectedRecipeId && (
