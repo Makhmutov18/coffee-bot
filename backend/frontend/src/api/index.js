@@ -84,3 +84,12 @@ export async function createCompany(name) {
     body: JSON.stringify({ name }),
   })
 }
+
+export async function convertGrinder(fromGrinder, toGrinder, clicks) {
+  const params = new URLSearchParams({
+    from_grinder: fromGrinder,
+    to_grinder: toGrinder,
+    clicks: String(clicks),
+  })
+  return apiFetch(`${API_BASE}/api/grinders/convert?${params}`)
+}

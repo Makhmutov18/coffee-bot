@@ -10,7 +10,7 @@ from aiohttp import web
 
 from app.database import (
     Recipe, Measurement, Spot, Company, UserRole, User,
-    user_spots, calculate_extraction,
+    user_spots, calculate_extraction, convert_grinder_clicks,
 )
 from app.auth import get_current_user
 
@@ -572,6 +572,47 @@ async def handle_calculate(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# Конвертация кофемолок
+# ──────────────────────────────────────────────
+
+async def handle_convert_grinder(request: web.Request) -> web.Response:
+    """
+    Конвертировать щелчки/деления между кофемолками.
+
+    Query-параметры:
+      - from_grinder (str): имя колонки исходной кофемолки (comandante_c40, timemore_c2, ...)
+      - to_grinder (str): имя колонки целевой кофемолки
+      - clicks (float): количество щелчков на исходной кофемолке
+    """
+    from_grinder = request.query.get("from_grinder", "").strip()
+    to_grinder = request.query.get("to_grinder", "").strip()
+    clicks_str = request.query.get("clicks", "").strip()
+
+    if not from_grinder or not to_grinder or not clicks_str:
+        return web.json_response(
+            {"error": "Параметры from_grinder, to_grinder и clicks обязательны"},
+            status=400,
+        )
+
+    try:
+        clicks = float(clicks_str)
+    except ValueError:
+        return web.json_response({"error": "clicks должен быть числом"}, status=400)
+
+    if clicks <= 0:
+        return web.json_response({"error": "clicks должен быть положительным числом"}, status=400)
+
+    result = convert_grinder_clicks(from_grinder, to_grinder, clicks)
+    if result is None:
+        return web.json_response(
+            {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок."},
+            status=400,
+        )
+
+    return web.json_response(result)
+
+
+# ──────────────────────────────────────────────
 # Регистрация маршрутов
 # ──────────────────────────────────────────────
 
@@ -588,10 +629,11 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
+    app.router.add_get("/api/grinders/convert", handle_convert_grinder)
     logger.info(
         "API routes registered: "
         "GET /api/user/me, GET /api/user/company, GET /api/user/spots, "
         "POST /api/companies, POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
-        "POST /api/calculate"
+        "POST /api/calculate, GET /api/grinders/convert"
     )

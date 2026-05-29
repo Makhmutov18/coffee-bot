@@ -47,6 +47,7 @@ os.makedirs(_DB_DIR, exist_ok=True)
 class UserRole(str, enum.Enum):
     """Роли пользователей в системе."""
     personal = "personal"  # Варит для себя дома
+    personal_premium = "personal_premium"  # Домашний с расширенными возможностями
     barista = "barista"    # Бариста на точке
     manager = "manager"    # Старший бариста спота
     owner = "owner"        # Шеф-бариста сети
@@ -256,6 +257,38 @@ class Measurement(Base):
 
 
 # ──────────────────────────────────────────────
+# Таблица просеивания (конвертация кофемолок)
+# ──────────────────────────────────────────────
+
+class GrinderMapping(Base):
+    """
+    Таблица просеивания для конвертации щелчков между кофемолками.
+
+    Каждая строка соответствует определённому диапазону микрон (micron_range).
+    Значения в колонках кофемолок — это количество щелчков/делений для
+    достижения данного размера помола.
+    """
+
+    __tablename__ = "grinder_mappings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    micron_range = Column(String(32), nullable=False, comment="Диапазон микрон, например '800-900'")
+
+    # Кофемолки (значения nullable — если модель не поддерживает данный помол)
+    comandante_c40 = Column(Float, nullable=True, comment="Comandante C40 (клики)")
+    timemore_c2 = Column(Float, nullable=True, comment="Timemore C2 (клики)")
+    mahlkonig_ek43 = Column(Float, nullable=True, comment="Mahlkönig EK43 (деления шкалы)")
+    zp6 = Column(Float, nullable=True, comment="1Zpresso ZP6 (обороты)")
+    mischief_m40 = Column(Float, nullable=True, comment="Mischief M40 (клики)")
+    fellow_ode = Column(Float, nullable=True, comment="Fellow Ode (деления)")
+    wilfa_svart = Column(Float, nullable=True, comment="Wilfa Svart (клики)")
+    kinu_m47 = Column(Float, nullable=True, comment="Kinu M47 (обороты)")
+
+    def __repr__(self) -> str:
+        return f"<GrinderMapping(id={self.id}, micron={self.micron_range})>"
+
+
+# ──────────────────────────────────────────────
 # Функция расчёта экстракции (Golden Cup)
 # ──────────────────────────────────────────────
 
@@ -376,6 +409,117 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 
+def _seed_grinder_mappings(engine) -> None:
+    """Заполнить таблицу grinder_mappings тестовыми данными (таблица просеивания Сварщицы Екатерины)."""
+    from sqlalchemy import inspect as sa_inspect
+    inspector = sa_inspect(engine)
+    if inspector.has_table("grinder_mappings"):
+        with Session(bind=engine) as s:
+            if s.query(GrinderMapping).count() > 0:
+                logger.info("GrinderMapping already seeded, skipping")
+                return
+
+    # Данные: micron_range, comandante_c40, timemore_c2, mahlkonig_ek43, zp6, mischief_m40, fellow_ode, wilfa_svart, kinu_m47
+    seed_data = [
+        # (micron_range, c40, c2, ek43, zp6, m40, ode, svart, m47)
+        ("200-300",    None, None, 0.5,  None,  None,  None, None, None),
+        ("300-400",    5,    5,    1.0,  0.5,   4,     1,    2,    0.3),
+        ("400-500",    10,   8,    1.5,  1.0,   7,     2,    4,    0.6),
+        ("500-600",    15,   11,   2.0,  1.5,   10,    3,    6,    0.9),
+        ("600-700",    20,   14,   2.5,  2.0,   13,    4,    8,    1.2),
+        ("700-800",    25,   17,   3.0,  2.5,   16,    5,    10,   1.5),
+        ("800-900",    30,   20,   3.5,  3.0,   19,    6,    12,   1.8),
+        ("900-1000",   35,   23,   4.0,  3.5,   22,    7,    14,   2.1),
+        ("1000-1100",  40,   26,   4.5,  4.0,   25,    8,    16,   2.4),
+        ("1100-1200",  45,   29,   5.0,  4.5,   28,    9,    18,   2.7),
+    ]
+
+    with Session(bind=engine) as s:
+        for row in seed_data:
+            mapping = GrinderMapping(
+                micron_range=row[0],
+                comandante_c40=row[1],
+                timemore_c2=row[2],
+                mahlkonig_ek43=row[3],
+                zp6=row[4],
+                mischief_m40=row[5],
+                fellow_ode=row[6],
+                wilfa_svart=row[7],
+                kinu_m47=row[8],
+            )
+            s.add(mapping)
+        s.commit()
+    logger.info("GrinderMapping seeded with %d rows", len(seed_data))
+
+
+def convert_grinder_clicks(
+    from_grinder: str,
+    to_grinder: str,
+    clicks: float,
+) -> dict | None:
+    """
+    Конвертировать щелчки/деления между кофемолками через таблицу просеивания.
+
+    Параметры
+    ---------
+    from_grinder : str
+        Имя колонки исходной кофемолки (например, 'comandante_c40').
+    to_grinder : str
+        Имя колонки целевой кофемолки (например, 'zp6').
+    clicks : float
+        Количество щелчков/делений на исходной кофемолке.
+
+    Возвращает
+    ----------
+    dict | None
+        { 'from_grinder': ..., 'to_grinder': ..., 'from_clicks': ..., 'to_clicks': ...,
+          'micron_range': ... } или None, если конвертация невозможна.
+    """
+    engine = init_engine()
+    with Session(bind=engine) as s:
+        # Ищем строку, где значение from_grinder колонки = clicks
+        # Используем динамический фильтр
+        from_col = getattr(GrinderMapping, from_grinder, None)
+        to_col = getattr(GrinderMapping, to_grinder, None)
+        if from_col is None or to_col is None:
+            logger.warning("Unknown grinder column: %s or %s", from_grinder, to_grinder)
+            return None
+
+        # Находим строку, где from_grinder колонка содержит значение, ближайшее к clicks
+        # Сначала ищем точное совпадение
+        mapping = s.query(GrinderMapping).filter(from_col == clicks).first()
+
+        # Если точного нет — ищем ближайшее
+        if not mapping:
+            all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).order_by(from_col).all()
+            if not all_rows:
+                return None
+            # Бинарный поиск ближайшего
+            closest = min(all_rows, key=lambda r: abs(getattr(r, from_grinder) - clicks))
+            mapping = closest
+
+        if mapping is None:
+            return None
+
+        from_val = getattr(mapping, from_grinder)
+        to_val = getattr(mapping, to_grinder)
+
+        if from_val is None or to_val is None:
+            return None
+
+        # Пропорциональный пересчёт в пределах диапазона
+        ratio = clicks / from_val
+        result_clicks = round(to_val * ratio, 1)
+
+        return {
+            "from_grinder": from_grinder,
+            "to_grinder": to_grinder,
+            "from_clicks": clicks,
+            "to_clicks": result_clicks,
+            "micron_range": mapping.micron_range,
+        }
+
+
 def init_database() -> None:
     """
     Инициализировать базу данных: создать глобальный engine, таблицы и миграции.
@@ -384,6 +528,7 @@ def init_database() -> None:
     engine = init_engine()
     Base.metadata.create_all(engine)
     _migrate_existing_tables(engine)
+    _seed_grinder_mappings(engine)
     logger.info("Database tables created/verified")
 
 
