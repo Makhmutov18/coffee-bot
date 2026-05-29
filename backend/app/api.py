@@ -315,8 +315,7 @@ async def handle_generate_invite(request: web.Request) -> web.Response:
 
 async def get_bot_username():
     """Вернуть username бота для формирования инвайт-ссылки."""
-    import os
-    return os.getenv("BOT_USERNAME", "cofffee_recipe_bot")
+    return "cofffee_recipe_bot"
 
 
 # ──────────────────────────────────────────────
