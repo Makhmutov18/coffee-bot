@@ -277,7 +277,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               type="text"
               value={form.name}
               onChange={handleChange('name')}
-              placeholder="Например: Утренний V60"
+              placeholder="Например: V60"
             />
           </div>
           <div>
@@ -286,7 +286,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               type="text"
               value={form.roaster}
               onChange={handleChange('roaster')}
-              placeholder="например, Subtext, Сварщица..."
+              placeholder="например, Субмарина, Сварщица..."
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -380,9 +380,9 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           <div>
             <label className="text-xs text-coffee-300 font-medium mb-1 block">Кофе (гр) *</label>
             <input
-              type="number"
-              step="0.1"
-              min="1"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={form.dose}
               onChange={handleChange('dose')}
               placeholder="15"
@@ -393,9 +393,9 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           <div>
             <label className="text-xs text-coffee-300 font-medium mb-1 block">Вода (мл) *</label>
             <input
-              type="number"
-              step="1"
-              min="1"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={form.totalWater}
               onChange={handleChange('totalWater')}
               placeholder="250"
@@ -406,8 +406,9 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           <div>
             <label className="text-xs text-coffee-300 font-medium mb-1 block">Темп. (°C)</label>
             <input
-              type="number"
-              step="0.5"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={form.waterTemp}
               onChange={handleChange('waterTemp')}
               placeholder="94"
@@ -420,8 +421,9 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
         <div>
           <label className="text-xs text-coffee-300 font-medium mb-1 block">Минерализация воды (ppm)</label>
           <input
-            type="number"
-            step="1"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*"
             value={form.waterTds}
             onChange={handleChange('waterTds')}
             placeholder="50"
@@ -467,11 +469,12 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
                   className="w-20 !bg-transparent !p-1 !border-0 text-sm font-mono text-coffee-300 focus:!shadow-none"
                 />
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={step.volume}
                   onChange={handleStepChange(i, 'volume')}
                   placeholder="мл"
-                  min="1"
                   className="w-16 !bg-transparent !p-1 !border-0 text-sm focus:!shadow-none"
                 />
                 <select

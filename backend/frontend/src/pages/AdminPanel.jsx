@@ -224,9 +224,9 @@ export default function AdminPanel() {
           <div>
             <label className="text-coffee-latte text-xs block mb-1">TDS воды (ppm)</label>
             <input
-              type="number"
-              min={0}
-              max={500}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={waterPpm}
               onChange={(e) => setWaterPpm(parseInt(e.target.value, 10) || 0)}
               className="w-full px-3 py-2 rounded-lg bg-coffee-800/60 border border-coffee-700/50 text-coffee-cream focus:outline-none focus:border-coffee-500 text-sm"

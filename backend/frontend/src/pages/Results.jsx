@@ -135,8 +135,9 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
           <div>
             <label className="text-xs text-coffee-300 font-medium mb-1 block">Выход напитка (гр)</label>
             <input
-              type="number"
-              step="0.1"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               placeholder="например, 215"
               value={beverageWeight}
               onChange={(e) => setBeverageWeight(e.target.value)}
@@ -146,8 +147,9 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
           <div>
             <label className="text-xs text-coffee-300 font-medium mb-1 block">TDS (%)</label>
             <input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*"
               placeholder="например, 1.35"
               value={tds}
               onChange={(e) => setTds(e.target.value)}
