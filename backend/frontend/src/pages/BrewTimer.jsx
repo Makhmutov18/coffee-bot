@@ -52,11 +52,26 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
   const currentStep = steps[currentStepIndex]
   const nextStep = steps[currentStepIndex + 1]
 
+  // Calculate total brew time from last step
+  const lastStepTime = steps.length > 0 ? steps[steps.length - 1].time : 0
+  const brewTotalMinutes = Math.floor(lastStepTime / 60)
+  const brewTotalSeconds = lastStepTime % 60
+  const brewTotalStr = brewTotalMinutes > 0
+    ? `${brewTotalMinutes} мин ${brewTotalSeconds} сек`
+    : `${lastStepTime} сек`
+
   return (
     <div className="flex flex-col items-center space-y-6">
       <h2 className="text-lg font-semibold text-coffee-200">
         {recipe ? `${recipe.beanVariety}` : 'Заваривание'}
       </h2>
+
+      {/* Total brew time */}
+      {steps.length > 0 && (
+        <div className="text-sm text-coffee-500">
+          Общее время заваривания: <span className="text-coffee-300 font-medium">{brewTotalStr}</span>
+        </div>
+      )}
 
       {/* Timer Display */}
       <div className="text-6xl font-mono font-bold text-coffee-100 tracking-wider my-4">
@@ -70,11 +85,16 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
           <div className="flex justify-between items-center">
             <div>
               <div className="text-lg font-semibold text-coffee-200">
-                {currentStep.action}
+                {currentStep.action === 'bloom' ? 'Блум' : 'Вливание'}
               </div>
               <div className="text-sm text-coffee-400">
-                {currentStep.volume} мл
+                {currentStep.volume ? `${currentStep.volume} мл` : ''}
               </div>
+              {currentStep.comment && (
+                <div className="text-xs text-coffee-500 mt-1 italic">
+                  {currentStep.comment}
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="text-sm text-coffee-500">Время</div>
@@ -91,9 +111,15 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
         <div className="w-full bg-coffee-900/50 rounded-xl p-3 border border-coffee-800">
           <div className="text-xs text-coffee-500 mb-1">Следующий</div>
           <div className="flex justify-between text-sm">
-            <span className="text-coffee-400">{nextStep.action} — {nextStep.volume} мл</span>
+            <span className="text-coffee-400">
+              {nextStep.action === 'bloom' ? 'Блум' : 'Вливание'}
+              {nextStep.volume ? ` — ${nextStep.volume} мл` : ''}
+            </span>
             <span className="text-coffee-500 font-mono">{formatTime(nextStep.time)}</span>
           </div>
+          {nextStep.comment && (
+            <div className="text-xs text-coffee-600 mt-1 italic">{nextStep.comment}</div>
+          )}
         </div>
       )}
 
@@ -104,7 +130,7 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
           {steps.map((step, i) => (
             <div
               key={i}
-              className={`flex justify-between text-sm px-3 py-1.5 rounded ${
+              className={`text-sm px-3 py-1.5 rounded ${
                 i === currentStepIndex
                   ? 'bg-coffee-700 text-coffee-100'
                   : i < currentStepIndex
@@ -112,8 +138,16 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
                   : 'text-coffee-400'
               }`}
             >
-              <span>{step.action}</span>
-              <span className="font-mono">{formatTime(step.time)} — {step.volume}мл</span>
+              <div className="flex justify-between">
+                <span>{step.action === 'bloom' ? 'Блум' : 'Вливание'}</span>
+                <span className="font-mono">
+                  {formatTime(step.time)}
+                  {step.volume ? ` — ${step.volume}мл` : ''}
+                </span>
+              </div>
+              {step.comment && (
+                <div className="text-xs opacity-70 mt-0.5">{step.comment}</div>
+              )}
             </div>
           ))}
         </div>

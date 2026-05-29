@@ -51,6 +51,10 @@ export default function App() {
     setActiveTab('recipe')
   }, [])
 
+  const handleGoToRecipes = useCallback(() => {
+    setActiveTab('recipes')
+  }, [])
+
   const handleSelectRecipe = useCallback((r) => {
     setSelectedRecipeId(r.id)
   }, [])
@@ -113,6 +117,7 @@ export default function App() {
             brewResults={brewResults}
             onNewBrew={handleNewBrew}
             onNewRecipe={handleNewRecipe}
+            onGoToRecipes={handleGoToRecipes}
           />
         )}
         {activeTab === 'recipes' && !selectedRecipeId && (

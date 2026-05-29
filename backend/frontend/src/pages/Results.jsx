@@ -11,7 +11,7 @@ const TASTING_FIELDS = [
   { key: 'cleanCup', label: 'Чистота чашки (Clean Cup)', placeholder: 'Отсутствие дефектов...' },
 ]
 
-export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe }) {
+export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, onGoToRecipes }) {
   const [beverageWeight, setBeverageWeight] = useState('')
   const [tds, setTds] = useState('')
   const [extraction, setExtraction] = useState(null)
@@ -68,17 +68,44 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe })
     setTastingNotes((prev) => ({ ...prev, [key]: e.target.value }))
   }
 
+  // Guard: если нет рецепта — показываем заглушку
+  if (!recipe) {
+    return (
+      <div className="text-center space-y-4 py-8">
+        <div className="text-5xl">☕</div>
+        <h2 className="text-xl font-bold text-coffee-cream">Нет активного рецепта</h2>
+        <p className="text-coffee-latte text-sm">
+          Сначала создайте рецепт на вкладке «Рецепт»
+        </p>
+        <button
+          onClick={onNewRecipe}
+          className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+        >
+          Создать рецепт
+        </button>
+      </div>
+    )
+  }
+
   if (saved) {
     return (
       <div className="text-center space-y-4">
         <div className="text-6xl">✅</div>
         <h2 className="text-xl font-bold text-coffee-cream">Рецепт сохранён!</h2>
-        <button
-          onClick={handleClose}
-          className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
-        >
-          Новый рецепт
-        </button>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={handleClose}
+            className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+          >
+            Новый рецепт
+          </button>
+          <button
+            onClick={onGoToRecipes}
+            className="px-6 py-2 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition"
+          >
+            Мои рецепты
+          </button>
+        </div>
       </div>
     )
   }

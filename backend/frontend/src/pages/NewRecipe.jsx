@@ -103,7 +103,7 @@ export default function NewRecipe({ onSave, initialData }) {
     totalWater: '',
     waterTemp: '',
     waterTds: '',
-    pourSteps: [{ time: '', volume: '', action: 'bloom' }],
+    pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
   })
 
   // Pre-fill form when repeating a recipe
@@ -130,8 +130,9 @@ export default function NewRecipe({ onSave, initialData }) {
               time: s.time?.toString() || '',
               volume: s.volume?.toString() || '',
               action: s.action || 'pour',
+              comment: s.comment || '',
             }))
-          : [{ time: '', volume: '', action: 'bloom' }],
+          : [{ time: '', volume: '', action: 'bloom', comment: '' }],
       })
     }
   }, [initialData])
@@ -151,7 +152,7 @@ export default function NewRecipe({ onSave, initialData }) {
   const addStep = () => {
     setForm((prev) => ({
       ...prev,
-      pourSteps: [...prev.pourSteps, { time: '', volume: '', action: 'pour' }],
+      pourSteps: [...prev.pourSteps, { time: '', volume: '', action: 'pour', comment: '' }],
     }))
   }
 
@@ -194,6 +195,7 @@ export default function NewRecipe({ onSave, initialData }) {
           time: totalSeconds,
           volume: s.volume ? parseInt(s.volume) : undefined,
           action: s.action,
+          comment: s.comment || undefined,
         }
       })
     onSave({
@@ -384,45 +386,57 @@ export default function NewRecipe({ onSave, initialData }) {
       <div>
         <label className="block text-sm font-medium text-coffee-latte mb-2">Шаги пролива</label>
         {form.pourSteps.map((step, i) => (
-          <div key={i} className="flex gap-2 mb-2 items-end">
-            <div className="flex-1">
+          <div key={i} className="mb-3 p-3 rounded-lg bg-coffee-900/50 border border-coffee-800">
+            <div className="flex gap-2 mb-2 items-end">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={step.time}
+                  onChange={handleStepChange(i, 'time')}
+                  placeholder="Время: 45 или 1:30"
+                  className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                />
+              </div>
+              <div className="w-20">
+                <input
+                  type="number"
+                  value={step.volume}
+                  onChange={handleStepChange(i, 'volume')}
+                  placeholder="мл"
+                  min="1"
+                  className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                />
+              </div>
+              <div className="w-24">
+                <select
+                  value={step.action}
+                  onChange={handleStepChange(i, 'action')}
+                  className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                >
+                  <option value="bloom">Блум</option>
+                  <option value="pour">Вливание</option>
+                </select>
+              </div>
+              {form.pourSteps.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeStep(i)}
+                  className="px-2 py-2 text-red-400 hover:text-red-300 text-lg"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {/* Комментарий к шагу */}
+            <div>
               <input
                 type="text"
-                value={step.time}
-                onChange={handleStepChange(i, 'time')}
-                placeholder="Время: 45 или 1:30"
-                className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                value={step.comment}
+                onChange={handleStepChange(i, 'comment')}
+                placeholder="Комментарий к шагу (необязательно)"
+                className="w-full px-3 py-1.5 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-xs"
               />
             </div>
-            <div className="w-20">
-              <input
-                type="number"
-                value={step.volume}
-                onChange={handleStepChange(i, 'volume')}
-                placeholder="мл"
-                min="1"
-                className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
-              />
-            </div>
-            <div className="w-24">
-              <select
-                value={step.action}
-                onChange={handleStepChange(i, 'action')}
-                className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
-              >
-                <option value="bloom">Блум</option>
-                <option value="pour">Вливание</option>
-              </select>
-            </div>
-            {form.pourSteps.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeStep(i)}
-                className="px-2 py-2 text-red-400 hover:text-red-300 text-lg"
-              >
-                ✕
-              </button>
-            )}
           </div>
         ))}
         <button
