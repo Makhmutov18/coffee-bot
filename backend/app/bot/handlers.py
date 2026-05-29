@@ -268,8 +268,7 @@ async def cmd_app(message: Message) -> None:
         "Нажми кнопку ниже, чтобы открыть Mini App:\n\n"
         "• 📝 Создать рецепт\n"
         "• ⏱️ Таймер заваривания\n"
-        "• 📊 Расчёт экстракции (Golden Cup)\n"
-        "• 🔄 Конвертация кофемолок",
+        "• 📊 Расчёт экстракции (Golden Cup)",
         reply_markup=webapp_kb,
     )
 

@@ -85,19 +85,6 @@ export async function createCompany(name) {
   })
 }
 
-export async function listGrinderModels() {
-  return apiFetch(`${API_BASE}/api/grinders/models`)
-}
-
-export async function convertGrinder(fromGrinder, toGrinder, value) {
-  const params = new URLSearchParams({
-    from_grinder: fromGrinder,
-    to_grinder: toGrinder,
-    value: String(value),
-  })
-  return apiFetch(`${API_BASE}/api/grinders/convert?${params}`)
-}
-
 export async function changeUserRole(userId, spotId, newRole) {
   return apiFetch(`${API_BASE}/api/companies/change-role`, {
     method: 'POST',

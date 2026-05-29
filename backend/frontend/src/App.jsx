@@ -5,7 +5,6 @@ import Results from './pages/Results'
 import RecipeList from './pages/RecipeList'
 import RecipeDetail from './pages/RecipeDetail'
 import AdminPanel from './pages/AdminPanel'
-import GrinderConverter from './pages/GrinderConverter'
 import { listUserSpots, getCurrentUser } from './api'
 
 const TABS = [
@@ -13,7 +12,6 @@ const TABS = [
   { key: 'brew', label: 'Заваривание', icon: '⏱️' },
   { key: 'results', label: 'Итоги', icon: '📊' },
   { key: 'recipes', label: 'Архив', icon: '☕' },
-  { key: 'convert', label: 'Конвертация', icon: '🔄' },
   { key: 'admin', label: 'Управление', icon: '⚙️' },
 ]
 
@@ -235,9 +233,6 @@ export default function App() {
             onRepeat={handleRepeatRecipe}
             userRole={userRole}
           />
-        )}
-        {activeTab === 'convert' && (
-          <GrinderConverter />
         )}
         {activeTab === 'admin' && userRole === 'owner' && (
           <AdminPanel />

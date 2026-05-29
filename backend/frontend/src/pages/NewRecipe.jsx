@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { saveRecipe, convertGrinder, listGrinderModels } from '../api'
+import { saveRecipe } from '../api'
 
 const DRIPPERS = [
   'Hario V60',
@@ -113,68 +113,6 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
-
-  // ── Динамические опции кофемолок для конвертера ──
-  const [convGrinderOptions, setConvGrinderOptions] = useState([])
-
-  // ── Инлайн-конвертер помола ──
-  const [showConverter, setShowConverter] = useState(false)
-  const [convFrom, setConvFrom] = useState('')
-  const [convTo, setConvTo] = useState('')
-  const [convValue, setConvValue] = useState('')
-  const [convResult, setConvResult] = useState(null)
-  const [convError, setConvError] = useState(null)
-  const [convLoading, setConvLoading] = useState(false)
-  const convDebounce = useRef(null)
-
-  // Загружаем список кофемолок для конвертера
-  useEffect(() => {
-    listGrinderModels().then((models) => {
-      setConvGrinderOptions(models)
-      if (models.length > 0) {
-        setConvFrom(models[0])
-        if (models.length > 1) {
-          setConvTo(models[1])
-        } else {
-          setConvTo(models[0])
-        }
-      }
-    }).catch(() => {})
-  }, [])
-
-  const doConvert = useCallback(async (from, to, val) => {
-    if (!val || !val.trim() || from === to) {
-      setConvResult(null)
-      setConvError(null)
-      return
-    }
-    setConvLoading(true)
-    setConvError(null)
-    try {
-      const data = await convertGrinder(from, to, val.trim())
-      setConvResult(data)
-    } catch (err) {
-      setConvError(err.message || 'Ошибка конвертации')
-      setConvResult(null)
-    } finally {
-      setConvLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (convDebounce.current) clearTimeout(convDebounce.current)
-    if (!convValue || !convValue.trim() || convFrom === convTo) {
-      setConvResult(null)
-      setConvError(null)
-      return
-    }
-    convDebounce.current = setTimeout(() => {
-      doConvert(convFrom, convTo, convValue)
-    }, 400)
-    return () => {
-      if (convDebounce.current) clearTimeout(convDebounce.current)
-    }
-  }, [convFrom, convTo, convValue, doConvert])
 
   // Pre-fill form when repeating a recipe
   useEffect(() => {
@@ -437,98 +375,6 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               placeholder="24 clicks"
             />
           </div>
-        </div>
-
-        {/* ── Инлайн-конвертер помола ── */}
-        <div className="border-t border-coffee-800/40 pt-3">
-          <button
-            type="button"
-            onClick={() => setShowConverter((v) => !v)}
-            className="w-full flex items-center justify-between text-xs font-medium text-coffee-400 hover:text-coffee-200 transition-colors"
-          >
-            <span>🔄 Конвертер помола</span>
-            <span className={`transform transition-transform ${showConverter ? 'rotate-180' : ''}`}>
-              ▼
-            </span>
-          </button>
-
-          {showConverter && convGrinderOptions.length > 0 && (
-            <div className="mt-3 space-y-3 animate-fade-in">
-              {/* Строка: from select + input */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-coffee-500 uppercase tracking-wider mb-1 block">Из</label>
-                  <select
-                    value={convFrom}
-                    onChange={(e) => setConvFrom(e.target.value)}
-                    className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
-                  >
-                    {convGrinderOptions.map((g) => (
-                      <option key={g} value={g}>{g.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] text-coffee-500 uppercase tracking-wider mb-1 block">В</label>
-                  <select
-                    value={convTo}
-                    onChange={(e) => setConvTo(e.target.value)}
-                    className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs text-coffee-200 focus:outline-none focus:border-coffee-500 appearance-none"
-                  >
-                    {convGrinderOptions.map((g) => (
-                      <option key={g} value={g}>{g.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Строка: input + результат */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-coffee-500 uppercase tracking-wider mb-1 block">Значение</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    pattern="\d*\.?\d*"
-                    value={convValue}
-                    onChange={(e) => setConvValue(e.target.value)}
-                    placeholder="20"
-                    className="w-full bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs text-coffee-200 placeholder-coffee-600 focus:outline-none focus:border-coffee-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-coffee-500 uppercase tracking-wider mb-1 block">Результат</label>
-                  <div className="w-full bg-coffee-900/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-xs min-h-[34px] flex items-center">
-                    {convLoading ? (
-                      <span className="text-coffee-500">⏳</span>
-                    ) : convResult ? (
-                      <span className="text-coffee-100 font-medium">{convResult.to_value}</span>
-                    ) : convError ? (
-                      <span className="text-red-400">{convError}</span>
-                    ) : (
-                      <span className="text-coffee-600">—</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Кнопка смены местами */}
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConvFrom(convTo)
-                    setConvTo(convFrom)
-                    setConvResult(null)
-                    setConvError(null)
-                  }}
-                  className="text-[10px] text-coffee-500 hover:text-coffee-300 transition-colors flex items-center gap-1"
-                >
-                  ⇅ Поменять местами
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2">

@@ -11,8 +11,7 @@ from aiohttp import web
 
 from app.database import (
     Recipe, Measurement, Spot, Company, UserRole, User,
-    user_spots, calculate_extraction, convert_grinder_value,
-    list_grinder_models,
+    user_spots, calculate_extraction,
 )
 from app.auth import get_current_user
 
@@ -611,58 +610,6 @@ async def handle_calculate(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
-# Список моделей кофемолок
-# ──────────────────────────────────────────────
-
-async def handle_list_grinder_models(request: web.Request) -> web.Response:
-    """
-    Вернуть список всех уникальных названий кофемолок из таблицы grinder_data.
-
-    Ответ: JSON-массив строк, например:
-      ["baratza_encore_esp", "comandante_c40_mk3_mk4", ...]
-    """
-    models = await asyncio.to_thread(list_grinder_models)
-    return web.json_response(models)
-
-
-# ──────────────────────────────────────────────
-# Конвертация кофемолок
-# ──────────────────────────────────────────────
-
-async def handle_convert_grinder(request: web.Request) -> web.Response:
-    """
-    Конвертировать значение помола между кофемолками.
-
-    Query-параметры:
-      - from_grinder (str): имя колонки исходной кофемолки (comandante_c40, timemore_c2, ...)
-      - to_grinder (str): имя колонки целевой кофемолки
-      - value (str): значение на исходной кофемолке (например, '20' или '19-22')
-    """
-    from_grinder = request.query.get("from_grinder", "").strip()
-    to_grinder = request.query.get("to_grinder", "").strip()
-    value = request.query.get("value", "").strip()
-
-    if not from_grinder or not to_grinder or not value:
-        return web.json_response(
-            {"error": "Параметры from_grinder, to_grinder и value обязательны"},
-            status=400,
-        )
-
-    # Выполняем синхронную convert_grinder_value в отдельном потоке,
-    # чтобы не блокировать event loop (предотвращает HTTP 499 timeout)
-    result = await asyncio.to_thread(
-        convert_grinder_value, from_grinder, to_grinder, value
-    )
-    if result is None:
-        return web.json_response(
-            {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок или значение."},
-            status=400,
-        )
-
-    return web.json_response(result)
-
-
-# ──────────────────────────────────────────────
 # POST /api/companies/change-role — смена роли сотрудника
 # ──────────────────────────────────────────────
 
@@ -768,14 +715,11 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
-    app.router.add_get("/api/grinders/models", handle_list_grinder_models)
-    app.router.add_get("/api/grinders/convert", handle_convert_grinder)
     logger.info(
         "API routes registered: "
         "GET /api/user/me, GET /api/user/company, GET /api/user/spots, "
         "POST /api/companies, POST /api/companies/change-role, "
         "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
-        "POST /api/calculate, "
-        "GET /api/grinders/models, GET /api/grinders/convert"
+        "POST /api/calculate"
     )
