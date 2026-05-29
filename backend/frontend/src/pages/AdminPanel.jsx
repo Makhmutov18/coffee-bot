@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { listUserSpots, createSpot, generateInvite, getUserCompany, createCompany } from '../api'
+import { listUserSpots, createSpot, generateInvite, getUserCompany, createCompany, changeUserRole } from '../api'
 
 export default function AdminPanel() {
   const [company, setCompany] = useState(null)
@@ -323,22 +323,14 @@ export default function AdminPanel() {
                         Сотрудников пока нет, сгенерируйте инвайт-ссылку выше
                       </div>
                     ) : (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-col gap-2">
                         {spot.staff.map((staff) => (
-                          <span
-                            key={staff.telegramId}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-coffee-800/60 text-coffee-latte text-xs"
-                          >
-                            <span>👤</span>
-                            <span>{staff.name || staff.username || staff.telegramId}</span>
-                            {staff.username && (
-                              <span className="text-coffee-500">@{staff.username}</span>
-                            )}
-                            <span className="text-coffee-500">—</span>
-                            <span className={staff.role === 'manager' ? 'text-coffee-gold' : ''}>
-                              {staff.role === 'manager' ? 'Менеджер' : 'Бариста'}
-                            </span>
-                          </span>
+                          <StaffRow
+                            key={staff.id || staff.telegramId}
+                            staff={staff}
+                            spotId={spot.id}
+                            onRoleChanged={loadSpots}
+                          />
                         ))}
                       </div>
                     )}
@@ -349,6 +341,61 @@ export default function AdminPanel() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Компонент строки сотрудника с кнопкой смены роли ──
+function StaffRow({ staff, spotId, onRoleChanged }) {
+  const [changing, setChanging] = useState(false)
+  const [changeError, setChangeError] = useState(null)
+
+  const handleToggleRole = async () => {
+    setChanging(true)
+    setChangeError(null)
+    try {
+      const newRole = staff.role === 'manager' ? 'barista' : 'manager'
+      await changeUserRole(staff.id, spotId, newRole)
+      onRoleChanged()
+    } catch (e) {
+      setChangeError(e.message)
+    } finally {
+      setChanging(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-coffee-800/40 border border-coffee-700/40">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span>👤</span>
+        <span className="text-coffee-latte text-xs truncate">
+          {staff.name || staff.username || staff.telegramId}
+        </span>
+        {staff.username && (
+          <span className="text-coffee-500 text-xs shrink-0">@{staff.username}</span>
+        )}
+        <span className={`text-xs font-medium shrink-0 ${staff.role === 'manager' ? 'text-coffee-gold' : 'text-coffee-400'}`}>
+          {staff.role === 'manager' ? 'Менеджер' : 'Бариста'}
+        </span>
+      </div>
+      <button
+        onClick={handleToggleRole}
+        disabled={changing}
+        className={`shrink-0 text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+          staff.role === 'manager'
+            ? 'bg-coffee-800/60 text-coffee-400 hover:text-coffee-200 border border-coffee-700/50'
+            : 'bg-coffee-gold/20 text-coffee-gold hover:bg-coffee-gold/30 border border-coffee-gold/30'
+        } disabled:opacity-50`}
+      >
+        {changing
+          ? '...'
+          : staff.role === 'manager'
+            ? 'Сделать бариста'
+            : 'Назначить старшим'}
+      </button>
+      {changeError && (
+        <div className="text-red-400 text-xs">{changeError}</div>
+      )}
     </div>
   )
 }

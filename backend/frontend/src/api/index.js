@@ -85,11 +85,19 @@ export async function createCompany(name) {
   })
 }
 
-export async function convertGrinder(fromGrinder, toGrinder, clicks) {
+export async function convertGrinder(fromGrinder, toGrinder, value) {
   const params = new URLSearchParams({
     from_grinder: fromGrinder,
     to_grinder: toGrinder,
-    clicks: String(clicks),
+    value: String(value),
   })
   return apiFetch(`${API_BASE}/api/grinders/convert?${params}`)
+}
+
+export async function changeUserRole(userId, spotId, newRole) {
+  return apiFetch(`${API_BASE}/api/companies/change-role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, spot_id: spotId, new_role: newRole }),
+  })
 }

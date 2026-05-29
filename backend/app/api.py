@@ -10,7 +10,7 @@ from aiohttp import web
 
 from app.database import (
     Recipe, Measurement, Spot, Company, UserRole, User,
-    user_spots, calculate_extraction, convert_grinder_clicks,
+    user_spots, calculate_extraction, convert_grinder_value,
 )
 from app.auth import get_current_user
 
@@ -212,6 +212,7 @@ async def handle_list_user_spots(request: web.Request) -> web.Response:
         if user.role == UserRole.owner.value:
             spot_data["staff"] = [
                 {
+                    "id": staff.id,
                     "telegramId": staff.telegram_id,
                     "name": staff.name,
                     "username": staff.username,
@@ -577,39 +578,119 @@ async def handle_calculate(request: web.Request) -> web.Response:
 
 async def handle_convert_grinder(request: web.Request) -> web.Response:
     """
-    Конвертировать щелчки/деления между кофемолками.
+    Конвертировать значение помола между кофемолками.
 
     Query-параметры:
       - from_grinder (str): имя колонки исходной кофемолки (comandante_c40, timemore_c2, ...)
       - to_grinder (str): имя колонки целевой кофемолки
-      - clicks (float): количество щелчков на исходной кофемолке
+      - value (str): значение на исходной кофемолке (например, '20' или '19-22')
     """
     from_grinder = request.query.get("from_grinder", "").strip()
     to_grinder = request.query.get("to_grinder", "").strip()
-    clicks_str = request.query.get("clicks", "").strip()
+    value = request.query.get("value", "").strip()
 
-    if not from_grinder or not to_grinder or not clicks_str:
+    if not from_grinder or not to_grinder or not value:
         return web.json_response(
-            {"error": "Параметры from_grinder, to_grinder и clicks обязательны"},
+            {"error": "Параметры from_grinder, to_grinder и value обязательны"},
             status=400,
         )
 
-    try:
-        clicks = float(clicks_str)
-    except ValueError:
-        return web.json_response({"error": "clicks должен быть числом"}, status=400)
-
-    if clicks <= 0:
-        return web.json_response({"error": "clicks должен быть положительным числом"}, status=400)
-
-    result = convert_grinder_clicks(from_grinder, to_grinder, clicks)
+    result = convert_grinder_value(from_grinder, to_grinder, value)
     if result is None:
         return web.json_response(
-            {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок."},
+            {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок или значение."},
             status=400,
         )
 
     return web.json_response(result)
+
+
+# ──────────────────────────────────────────────
+# POST /api/companies/change-role — смена роли сотрудника
+# ──────────────────────────────────────────────
+
+async def handle_change_role(request: web.Request) -> web.Response:
+    """
+    Сменить роль пользователя на точке (barista ↔ manager).
+    Только владелец (owner) сети может менять роли.
+
+    Body: { user_id: int, spot_id: int, new_role: str ('barista' | 'manager') }
+    """
+    user = await get_current_user(request)
+
+    if user.role != UserRole.owner.value:
+        return web.json_response(
+            {"error": "Только владелец сети может менять роли"},
+            status=403,
+        )
+
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    target_user_id = data.get("user_id")
+    spot_id = data.get("spot_id")
+    new_role = data.get("new_role", "").strip().lower()
+
+    if not target_user_id or not spot_id or new_role not in ("barista", "manager"):
+        return web.json_response(
+            {"error": "Поля user_id, spot_id и new_role ('barista' | 'manager') обязательны"},
+            status=400,
+        )
+
+    session = request.get("db_session")
+    try:
+        # Проверяем, что спот принадлежит компании владельца
+        spot = session.query(Spot).filter(Spot.id == int(spot_id)).first()
+        if not spot:
+            return web.json_response({"error": "Точка не найдена"}, status=404)
+        if not user.company or spot.company_id != user.company.id:
+            return web.json_response(
+                {"error": "Эта точка не принадлежит вашей компании"},
+                status=403,
+            )
+
+        # Проверяем, что целевой пользователь привязан к этому споту
+        target_user = session.query(User).filter(User.id == int(target_user_id)).first()
+        if not target_user:
+            return web.json_response({"error": "Пользователь не найден"}, status=404)
+
+        # Проверяем связь через user_spots
+        is_attached = (
+            session.query(user_spots)
+            .filter(
+                user_spots.c.user_id == target_user.id,
+                user_spots.c.spot_id == spot.id,
+            )
+            .first()
+        )
+        if not is_attached:
+            return web.json_response(
+                {"error": "Этот пользователь не привязан к данной точке"},
+                status=400,
+            )
+
+        # Меняем роль
+        old_role = target_user.role
+        target_user.role = new_role
+        session.commit()
+
+        logger.info(
+            "Role changed: user_id=%s (%s -> %s) on spot_id=%s by owner_id=%s",
+            target_user.id, old_role, new_role, spot.id, user.id,
+        )
+
+        return web.json_response({
+            "message": f"Роль пользователя изменена на '{new_role}'",
+            "user_id": target_user.id,
+            "old_role": old_role,
+            "new_role": new_role,
+        })
+    except Exception as e:
+        session.rollback()
+        logger.error("Error changing role: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
 
 
 # ──────────────────────────────────────────────
@@ -622,6 +703,7 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/user/company", handle_get_user_company)
     app.router.add_get("/api/user/spots", handle_list_user_spots)
     app.router.add_post("/api/companies", handle_create_company)
+    app.router.add_post("/api/companies/change-role", handle_change_role)
     app.router.add_post("/api/spots", handle_create_spot)
     app.router.add_post("/api/spots/{id}/invite", handle_generate_invite)
     app.router.add_post("/api/recipes", handle_save_recipe)
@@ -633,7 +715,8 @@ def setup_api_routes(app: web.Application) -> None:
     logger.info(
         "API routes registered: "
         "GET /api/user/me, GET /api/user/company, GET /api/user/spots, "
-        "POST /api/companies, POST /api/spots, POST /api/spots/{id}/invite, "
+        "POST /api/companies, POST /api/companies/change-role, "
+        "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
         "POST /api/calculate, GET /api/grinders/convert"
     )

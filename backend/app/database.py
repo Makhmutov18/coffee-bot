@@ -262,27 +262,27 @@ class Measurement(Base):
 
 class GrinderMapping(Base):
     """
-    Таблица просеивания для конвертации щелчков между кофемолками.
+    Таблица просеивания для конвертации помола между кофемолками.
 
-    Каждая строка соответствует определённому диапазону микрон (micron_range).
-    Значения в колонках кофемолок — это количество щелчков/делений для
-    достижения данного размера помола.
+    Каждая строка соответствует определённому диапазону микрон (micron_range)
+    и методу заваривания (method). Значения в колонках кофемолок — это
+    строковые диапазоны (например, '19-22 clicks', '5.6-7.2', '33+ clicks').
     """
 
     __tablename__ = "grinder_mappings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    micron_range = Column(String(32), nullable=False, comment="Диапазон микрон, например '800-900'")
+    micron_range = Column(String(32), nullable=False, comment="Диапазон микрон, например '550-700'")
+    method = Column(String(128), nullable=True, comment="Метод заваривания")
 
-    # Кофемолки (значения nullable — если модель не поддерживает данный помол)
-    comandante_c40 = Column(Float, nullable=True, comment="Comandante C40 (клики)")
-    timemore_c2 = Column(Float, nullable=True, comment="Timemore C2 (клики)")
-    mahlkonig_ek43 = Column(Float, nullable=True, comment="Mahlkönig EK43 (деления шкалы)")
-    zp6 = Column(Float, nullable=True, comment="1Zpresso ZP6 (обороты)")
-    mischief_m40 = Column(Float, nullable=True, comment="Mischief M40 (клики)")
-    fellow_ode = Column(Float, nullable=True, comment="Fellow Ode (деления)")
-    wilfa_svart = Column(Float, nullable=True, comment="Wilfa Svart (клики)")
-    kinu_m47 = Column(Float, nullable=True, comment="Kinu M47 (обороты)")
+    # Кофемолки (строковые диапазоны, nullable — если не рекомендуется)
+    comandante_c40 = Column(String(64), nullable=True, comment="Comandante C40")
+    mahlkonig_ek43 = Column(String(64), nullable=True, comment="Mahlkönig EK43")
+    timemore_c2 = Column(String(64), nullable=True, comment="Timemore C2")
+    kingrinder_k6 = Column(String(64), nullable=True, comment="Kingrinder K6")
+    mischief_m40 = Column(String(64), nullable=True, comment="Mischief M40")
+    onezpresso_zp6 = Column(String(64), nullable=True, comment="1Zpresso ZP6")
+    fellow_ode_v2 = Column(String(64), nullable=True, comment="Fellow Ode V2")
 
     def __repr__(self) -> str:
         return f"<GrinderMapping(id={self.id}, micron={self.micron_range})>"
@@ -410,7 +410,7 @@ def _migrate_existing_tables(engine) -> None:
 
 
 def _seed_grinder_mappings(engine) -> None:
-    """Заполнить таблицу grinder_mappings тестовыми данными (таблица просеивания Сварщицы Екатерины)."""
+    """Заполнить таблицу grinder_mappings из JSON-файла grinders_data.json."""
     from sqlalchemy import inspect as sa_inspect
     inspector = sa_inspect(engine)
     if inspector.has_table("grinder_mappings"):
@@ -419,104 +419,171 @@ def _seed_grinder_mappings(engine) -> None:
                 logger.info("GrinderMapping already seeded, skipping")
                 return
 
-    # Данные: micron_range, comandante_c40, timemore_c2, mahlkonig_ek43, zp6, mischief_m40, fellow_ode, wilfa_svart, kinu_m47
-    seed_data = [
-        # (micron_range, c40, c2, ek43, zp6, m40, ode, svart, m47)
-        ("200-300",    None, None, 0.5,  None,  None,  None, None, None),
-        ("300-400",    5,    5,    1.0,  0.5,   4,     1,    2,    0.3),
-        ("400-500",    10,   8,    1.5,  1.0,   7,     2,    4,    0.6),
-        ("500-600",    15,   11,   2.0,  1.5,   10,    3,    6,    0.9),
-        ("600-700",    20,   14,   2.5,  2.0,   13,    4,    8,    1.2),
-        ("700-800",    25,   17,   3.0,  2.5,   16,    5,    10,   1.5),
-        ("800-900",    30,   20,   3.5,  3.0,   19,    6,    12,   1.8),
-        ("900-1000",   35,   23,   4.0,  3.5,   22,    7,    14,   2.1),
-        ("1000-1100",  40,   26,   4.5,  4.0,   25,    8,    16,   2.4),
-        ("1100-1200",  45,   29,   5.0,  4.5,   28,    9,    18,   2.7),
-    ]
+    # Путь к JSON-файлу относительно backend/
+    json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "grinders_data.json")
+    if not os.path.exists(json_path):
+        # Fallback: ищем рядом с проектом
+        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "newfile", "grinders_data.json")
+    if not os.path.exists(json_path):
+        logger.warning("grinders_data.json not found at %s, skipping seed", json_path)
+        return
+
+    with open(json_path, "r", encoding="utf-8") as f:
+        seed_data = json.load(f)
 
     with Session(bind=engine) as s:
         for row in seed_data:
             mapping = GrinderMapping(
-                micron_range=row[0],
-                comandante_c40=row[1],
-                timemore_c2=row[2],
-                mahlkonig_ek43=row[3],
-                zp6=row[4],
-                mischief_m40=row[5],
-                fellow_ode=row[6],
-                wilfa_svart=row[7],
-                kinu_m47=row[8],
+                micron_range=row.get("micron_range"),
+                method=row.get("method"),
+                comandante_c40=row.get("comandante_c40"),
+                mahlkonig_ek43=row.get("mahlkonig_ek43"),
+                timemore_c2=row.get("timemore_c2"),
+                kingrinder_k6=row.get("kingrinder_k6"),
+                mischief_m40=row.get("mischief_m40"),
+                onezpresso_zp6=row.get("onezpresso_zp6"),
+                fellow_ode_v2=row.get("fellow_ode_v2"),
             )
             s.add(mapping)
         s.commit()
-    logger.info("GrinderMapping seeded with %d rows", len(seed_data))
+    logger.info("GrinderMapping seeded with %d rows from %s", len(seed_data), json_path)
 
 
-def convert_grinder_clicks(
+def _parse_range_value(value_str: str) -> tuple[float, float] | None:
+    """
+    Парсит строковое значение кофемолки в числовой диапазон.
+
+    Поддерживает форматы:
+      - '19-22 clicks' → (19.0, 22.0)
+      - '5.6-7.2' → (5.6, 7.2)
+      - '33+ clicks' → (33.0, float('inf'))
+      - '8.6+' → (8.6, float('inf'))
+      - 'не рекомендуется' → None
+    """
+    if not value_str:
+        return None
+    s = value_str.strip().lower()
+    if s == "не рекомендуется" or s == "не рекоменд.":
+        return None
+    # Убираем единицы измерения (clicks, обороты и т.д.)
+    for suffix in [" clicks", " об.", " оборотов", " деления", " дел."]:
+        s = s.replace(suffix, "")
+    s = s.strip()
+    # Парсим диапазон с плюсом: "33+" или "8.6+"
+    if "+" in s:
+        try:
+            low = float(s.replace("+", "").strip())
+            return (low, float("inf"))
+        except ValueError:
+            return None
+    # Парсим диапазон: "19-22" или "5.6-7.2"
+    if "-" in s:
+        parts = s.split("-", 1)
+        try:
+            low = float(parts[0].strip())
+            high = float(parts[1].strip())
+            return (low, high)
+        except ValueError:
+            return None
+    # Одиночное число
+    try:
+        v = float(s)
+        return (v, v)
+    except ValueError:
+        return None
+
+
+def convert_grinder_value(
     from_grinder: str,
     to_grinder: str,
-    clicks: float,
+    value: str,
 ) -> dict | None:
     """
-    Конвертировать щелчки/деления между кофемолками через таблицу просеивания.
+    Конвертировать значение помола между кофемолками через таблицу просеивания.
 
     Параметры
     ---------
     from_grinder : str
         Имя колонки исходной кофемолки (например, 'comandante_c40').
     to_grinder : str
-        Имя колонки целевой кофемолки (например, 'zp6').
-    clicks : float
-        Количество щелчков/делений на исходной кофемолке.
+        Имя колонки целевой кофемолки (например, 'timemore_c2').
+    value : str
+        Строковое значение на исходной кофемолке (например, '20' или '19-22').
 
     Возвращает
     ----------
     dict | None
-        { 'from_grinder': ..., 'to_grinder': ..., 'from_clicks': ..., 'to_clicks': ...,
-          'micron_range': ... } или None, если конвертация невозможна.
+        { 'from_grinder': ..., 'to_grinder': ..., 'from_value': ..., 'to_value': ...,
+          'micron_range': ..., 'method': ... } или None, если конвертация невозможна.
     """
     engine = init_engine()
     with Session(bind=engine) as s:
-        # Ищем строку, где значение from_grinder колонки = clicks
-        # Используем динамический фильтр
         from_col = getattr(GrinderMapping, from_grinder, None)
         to_col = getattr(GrinderMapping, to_grinder, None)
         if from_col is None or to_col is None:
             logger.warning("Unknown grinder column: %s or %s", from_grinder, to_grinder)
             return None
 
-        # Находим строку, где from_grinder колонка содержит значение, ближайшее к clicks
-        # Сначала ищем точное совпадение
-        mapping = s.query(GrinderMapping).filter(from_col == clicks).first()
+        # Парсим переданное значение
+        parsed_input = _parse_range_value(value)
+        if parsed_input is None:
+            return None
+        input_low, input_high = parsed_input
+        # Берём среднюю точку для поиска
+        input_mid = (input_low + input_high) / 2 if input_high != float("inf") else input_low
 
-        # Если точного нет — ищем ближайшее
-        if not mapping:
-            all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).order_by(from_col).all()
-            if not all_rows:
-                return None
-            # Бинарный поиск ближайшего
-            closest = min(all_rows, key=lambda r: abs(getattr(r, from_grinder) - clicks))
-            mapping = closest
-
-        if mapping is None:
+        # Загружаем все строки, где from_grinder колонка не NULL
+        all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).all()
+        if not all_rows:
             return None
 
-        from_val = getattr(mapping, from_grinder)
-        to_val = getattr(mapping, to_grinder)
+        # Для каждой строки парсим её значение и ищем, куда попадает input_mid
+        best_match = None
+        best_distance = float("inf")
 
-        if from_val is None or to_val is None:
+        for row in all_rows:
+            row_raw = getattr(row, from_grinder)
+            if row_raw is None:
+                continue
+            row_range = _parse_range_value(row_raw)
+            if row_range is None:
+                continue
+            row_low, row_high = row_range
+
+            # Проверяем, попадает ли input_mid в диапазон строки
+            if row_low <= input_mid <= row_high:
+                # Точное попадание
+                best_match = row
+                break
+            else:
+                # Ищем ближайший
+                row_mid = (row_low + row_high) / 2 if row_high != float("inf") else row_low
+                dist = abs(row_mid - input_mid)
+                if dist < best_distance:
+                    best_distance = dist
+                    best_match = row
+
+        if best_match is None:
             return None
 
-        # Пропорциональный пересчёт в пределах диапазона
-        ratio = clicks / from_val
-        result_clicks = round(to_val * ratio, 1)
+        to_value_raw = getattr(best_match, to_grinder)
+        if to_value_raw is None:
+            return {
+                "from_grinder": from_grinder,
+                "to_grinder": to_grinder,
+                "from_value": value,
+                "to_value": "не рекомендуется",
+                "micron_range": best_match.micron_range,
+                "method": best_match.method,
+            }
 
         return {
             "from_grinder": from_grinder,
             "to_grinder": to_grinder,
-            "from_clicks": clicks,
-            "to_clicks": result_clicks,
-            "micron_range": mapping.micron_range,
+            "from_value": value,
+            "to_value": to_value_raw,
+            "micron_range": best_match.micron_range,
+            "method": best_match.method,
         }
 
 
