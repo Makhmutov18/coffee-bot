@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { saveRecipe } from '../api'
 
 const DRIPPERS = [
+  'Batch Brew',
   'Hario V60',
   'Hario Switch',
   'Kalita Wave',
@@ -105,6 +106,8 @@ const INITIAL_FORM = {
   waterTemp: '',
   waterTds: '',
   brewTime: '',
+  batchVolume: '',
+  brewRatio: '16.5',
   pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
 }
 
@@ -113,6 +116,18 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
+
+  const isBatchBrew = form.dripperType === 'Batch Brew'
+
+  const batchCalc = useMemo(() => {
+    if (!isBatchBrew) return null
+    const vol = parseFloat(form.batchVolume)
+    const ratio = parseFloat(form.brewRatio)
+    if (!vol || vol <= 0 || !ratio || ratio <= 0) return null
+    const coffeeWeight = +(vol / ratio).toFixed(1)
+    const waterInTank = Math.round(vol + coffeeWeight * 2)
+    return { coffeeWeight, waterInTank, batchVolume: vol, brewRatio: ratio }
+  }, [form.batchVolume, form.brewRatio, isBatchBrew])
 
   useEffect(() => {
     if (initialData) {
@@ -133,6 +148,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
         waterTemp: initialData.waterTemp?.toString() || '',
         waterTds: initialData.waterTds?.toString() || '',
         brewTime: initialData.brewTime?.toString() || '',
+        batchVolume: initialData.batchVolume?.toString() || '',
+        brewRatio: initialData.brewRatio?.toString() || '16.5',
         pourSteps: (initialData.pourSteps && initialData.pourSteps.length > 0)
           ? initialData.pourSteps.map((s) => ({
               time: s.time?.toString() || '',
@@ -207,16 +224,24 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   }
 
   const buildRecipeData = (steps) => {
+    let dose = parseFloat(form.dose)
+    let totalWater = parseFloat(form.totalWater)
+
+    if (isBatchBrew && batchCalc) {
+      dose = batchCalc.coffeeWeight
+      totalWater = batchCalc.waterInTank
+    }
+
     const data = {
       name: form.name || undefined,
       roaster: form.roaster || undefined,
       beanVariety: form.beanVariety,
       beanProcessing: form.beanProcessing || undefined,
-      dose: parseFloat(form.dose),
+      dose,
       dripperType: getDripperValue(),
       grinderModel: getGrinderValue() || undefined,
       grindSetting: form.grindSetting || undefined,
-      totalWater: parseFloat(form.totalWater),
+      totalWater,
       waterTemp: form.waterTemp ? parseFloat(form.waterTemp) : undefined,
       waterTds: form.waterTds ? parseFloat(form.waterTds) : undefined,
       brewTime: form.brewTime ? (() => {
@@ -375,46 +400,116 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="text-xs text-tech-primary font-medium mb-1 block">Кофе (гр) *</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="\d*\.?\d*"
-              value={form.dose}
-              onChange={handleChange('dose')}
-              placeholder="15"
-              required
-              className="w-full text-center"
-            />
+        {isBatchBrew ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-tech-primary font-medium mb-1 block">
+                  Желаемый объём готового кофе (мл) *
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  pattern="\d*\.?\d*"
+                  value={form.batchVolume}
+                  onChange={handleChange('batchVolume')}
+                  placeholder="1000"
+                  required
+                  className="w-full text-center"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-tech-primary font-medium mb-1 block">
+                  Коэффициент (Brew Ratio)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  pattern="\d*\.?\d*"
+                  value={form.brewRatio}
+                  onChange={handleChange('brewRatio')}
+                  placeholder="16.5"
+                  className="w-full text-center"
+                />
+              </div>
+            </div>
+
+            {batchCalc && (
+              <div className="bento-grid grid-cols-2 gap-3">
+                <div className="bento-item p-4 text-center">
+                  <div className="text-2xl font-bold text-tech-accent font-mono">{batchCalc.coffeeWeight}</div>
+                  <div className="text-xs text-tech-secondary mt-1">Вес кофе (г)</div>
+                </div>
+                <div className="bento-item p-4 text-center">
+                  <div className="text-2xl font-bold text-tech-accent font-mono">{batchCalc.waterInTank}</div>
+                  <div className="text-xs text-tech-secondary mt-1">Вода в бак (мл)</div>
+                </div>
+                <div className="bento-item p-4 text-center">
+                  <div className="text-lg font-bold text-tech-primary font-mono">1 : {batchCalc.brewRatio}</div>
+                  <div className="text-xs text-tech-secondary mt-1">Brew Ratio</div>
+                </div>
+                <div className="bento-item p-4 text-center">
+                  <div className="text-lg font-bold text-tech-primary font-mono">{batchCalc.batchVolume} мл</div>
+                  <div className="text-xs text-tech-secondary mt-1">На выходе</div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Темп. (°C)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.waterTemp}
+                onChange={handleChange('waterTemp')}
+                placeholder="94"
+                className="w-full text-center"
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-tech-primary font-medium mb-1 block">Вода (мл) *</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="\d*\.?\d*"
-              value={form.totalWater}
-              onChange={handleChange('totalWater')}
-              placeholder="250"
-              required
-              className="w-full text-center"
-            />
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Кофе (гр) *</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.dose}
+                onChange={handleChange('dose')}
+                placeholder="15"
+                required
+                className="w-full text-center"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Вода (мл) *</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.totalWater}
+                onChange={handleChange('totalWater')}
+                placeholder="250"
+                required
+                className="w-full text-center"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Темп. (°C)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.waterTemp}
+                onChange={handleChange('waterTemp')}
+                placeholder="94"
+                className="w-full text-center"
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-tech-primary font-medium mb-1 block">Темп. (°C)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="\d*\.?\d*"
-              value={form.waterTemp}
-              onChange={handleChange('waterTemp')}
-              placeholder="94"
-              className="w-full text-center"
-            />
-          </div>
-        </div>
+        )}
 
         <div>
           <label className="text-xs text-tech-primary font-medium mb-1 block">Минерализация воды (ppm)</label>
