@@ -419,20 +419,12 @@ def _seed_grinder_mappings(engine) -> None:
     При каждом старте:
       1. Удаляет ВСЕ старые записи (DELETE).
       2. Вставляет нормализованные данные.
-    """
-    candidates = [
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "grinders_data.json"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "newfile", "grinders_data.json"),
-        os.path.join(os.getcwd(), "newfile", "grinders_data.json"),
-    ]
-    json_path = None
-    for p in candidates:
-        if os.path.exists(p):
-            json_path = p
-            break
 
-    if json_path is None:
-        logger.warning("grinders_data.json not found (tried %s), skipping seed", candidates)
+    JSON-файл должен лежать рядом с database.py (backend/app/grinders_data.json).
+    """
+    json_path = os.path.join(os.path.dirname(__file__), "grinders_data.json")
+    if not os.path.exists(json_path):
+        logger.warning("grinders_data.json not found at %s, skipping seed", json_path)
         return
 
     with open(json_path, "r", encoding="utf-8") as f:
