@@ -87,7 +87,7 @@ export default function App() {
   }, [])
 
   return (
-    <div className="flex flex-col min-h-screen bg-coffee-950">
+    <div className="flex flex-col h-screen bg-coffee-950">
       {/* Header */}
       <header className="px-4 py-3 bg-coffee-900 border-b border-coffee-700">
         <h1 className="text-lg font-semibold text-coffee-100 text-center">
