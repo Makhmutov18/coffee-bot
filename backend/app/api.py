@@ -300,8 +300,8 @@ async def handle_generate_invite(request: web.Request) -> web.Response:
                 status=403,
             )
 
-        # Генерируем уникальный токен
-        token = secrets.token_urlsafe(32)
+        # Генерируем уникальный токен (только буквы и цифры, без дефисов)
+        token = secrets.token_hex(16)
 
         # Сохраняем токен (можно в отдельную таблицу или в поле Spot)
         # Пока сохраняем в простом поле — расширим при необходимости
