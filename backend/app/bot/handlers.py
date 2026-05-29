@@ -18,7 +18,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-from app.database import Recipe, Measurement, User, UserRole, calculate_extraction, init_db
+from app.database import Recipe, Measurement, User, UserRole, Spot, Company, user_spots, calculate_extraction, init_db
 
 # URL Mini App (берётся из переменной окружения или Railway URL по умолчанию)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app")
@@ -85,11 +85,20 @@ yes_no_kb = ReplyKeyboardMarkup(
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
-    # Регистрация / авторизация пользователя
     telegram_id = str(message.from_user.id)
     name = message.from_user.first_name
     username = message.from_user.username
 
+    # ── Deep linking: проверяем аргументы команды ──
+    args = message.get_args()
+    if args:
+        # Ожидаем формат: join_spot_<token>
+        if args.startswith("join_spot_"):
+            token = args[len("join_spot_"):]
+            await _handle_join_spot(message, telegram_id, name, username, token)
+            return
+
+    # ── Стандартный /start (регистрация + приветствие) ──
     session = init_db()
     try:
         existing = session.query(User).filter(User.telegram_id == telegram_id).first()
@@ -131,6 +140,98 @@ async def cmd_start(message: Message) -> None:
         "• /cancel — отменить текущее действие",
         reply_markup=webapp_kb,
     )
+
+
+async def _handle_join_spot(
+    message: Message,
+    telegram_id: str,
+    name: str,
+    username: str | None,
+    token: str,
+) -> None:
+    """Обработать инвайт-ссылку: найти спот по токену и добавить пользователя как бариста."""
+    session = init_db()
+    try:
+        # Ищем спот по токену
+        spot = session.query(Spot).filter(Spot.invite_token == token).first()
+        if not spot:
+            await message.answer(
+                "❌ <b>Недействительная ссылка</b>\n\n"
+                "Инвайт-токен не найден. Возможно, ссылка устарела или была отозвана. "
+                "Обратитесь к владельцу сети за новой ссылкой.",
+            )
+            return
+
+        # Загружаем компанию спота
+        company = session.query(Company).filter(Company.id == spot.company_id).first()
+
+        # Находим или создаём пользователя
+        user = session.query(User).filter(User.telegram_id == telegram_id).first()
+        if not user:
+            user = User(
+                telegram_id=telegram_id,
+                name=name,
+                username=username,
+                role=UserRole.personal.value,
+            )
+            session.add(user)
+            session.flush()
+
+        # Если пользователь уже owner этой компании — игнорируем
+        if user.role == UserRole.owner.value and company and user.id == company.owner_id:
+            await message.answer(
+                "👑 <b>Вы уже владелец этой сети</b>\n\n"
+                f"Точка «{spot.name}» принадлежит вашей компании. "
+                "Вы можете управлять ею через Mini App.",
+            )
+            return
+
+        # Если пользователь уже barista/manager и привязан к этому споту — сообщаем
+        if user.role in (UserRole.barista.value, UserRole.manager.value):
+            already_attached = (
+                session.query(user_spots)
+                .filter(
+                    user_spots.c.user_id == user.id,
+                    user_spots.c.spot_id == spot.id,
+                )
+                .first()
+            )
+            if already_attached:
+                await message.answer(
+                    "✅ <b>Вы уже добавлены на эту точку</b>\n\n"
+                    f"Вы числитесь как <b>{dict(UserRole.__members__).get(user.role.upper(), user.role)}</b> "
+                    f"на точке «{spot.name}».",
+                )
+                return
+
+        # Меняем роль на barista (если personal) и добавляем связь
+        if user.role == UserRole.personal.value:
+            user.role = UserRole.barista.value
+
+        # Добавляем запись в user_spots
+        conn = session.connection()
+        conn.execute(
+            user_spots.insert().values(user_id=user.id, spot_id=spot.id),
+        )
+        session.commit()
+
+        company_name = company.name if company else "Неизвестная сеть"
+        await message.answer(
+            f"🎉 <b>Успешно!</b>\n\n"
+            f"Вы добавлены как <b>бариста</b> на точку "
+            f"«{spot.name}» сети «{company_name}».\n\n"
+            f"Откройте Brew Lab, чтобы увидеть рецепты!",
+        )
+
+    except Exception as e:
+        session.rollback()
+        logger.error("Error processing invite: %s", e)
+        await message.answer(
+            "❌ <b>Ошибка при обработке приглашения</b>\n\n"
+            "Пожалуйста, попробуйте ещё раз или обратитесь к владельцу сети.",
+        )
+    finally:
+        session.close()
 
 
 # ──────────────────────────────────────────────
