@@ -20,6 +20,10 @@ async function apiFetch(url, options = {}) {
   return res.json()
 }
 
+export async function listUserSpots() {
+  return apiFetch(`${API_BASE}/api/user/spots`)
+}
+
 export async function saveRecipe(recipeData) {
   return apiFetch(`${API_BASE}/api/recipes`, {
     method: 'POST',
@@ -28,8 +32,9 @@ export async function saveRecipe(recipeData) {
   })
 }
 
-export async function listRecipes() {
-  return apiFetch(`${API_BASE}/api/recipes`)
+export async function listRecipes(spotId) {
+  const params = spotId ? `?spotId=${spotId}` : ''
+  return apiFetch(`${API_BASE}/api/recipes${params}`)
 }
 
 export async function getRecipe(id) {
