@@ -6,7 +6,7 @@ import logging
 import os
 
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -17,7 +17,6 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     WebAppInfo,
-    CommandObject,
 )
 
 from app.database import Recipe, Measurement, User, UserRole, Spot, Company, user_spots, calculate_extraction, init_db
