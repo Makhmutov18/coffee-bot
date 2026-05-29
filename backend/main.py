@@ -14,6 +14,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 
 from app.api import setup_api_routes
+from app.auth import tg_auth_middleware
 from app.bot.handlers import router
 
 load_dotenv()
@@ -53,15 +54,15 @@ async def cors_middleware(request: web.Request, handler) -> web.Response:
     else:
         response = await handler(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-TG-Init-Data"
     return response
 
 
 async def run_health_server() -> None:
     """Запустить HTTP-сервер для health check, API и статики фронтенда."""
     port = int(os.getenv("PORT", 8080))
-    app = web.Application(middlewares=[cors_middleware])
+    app = web.Application(middlewares=[cors_middleware, tg_auth_middleware])
 
     # Health check
     app.router.add_get("/health", handle_health)
