@@ -5,13 +5,14 @@ import Results from './pages/Results'
 import RecipeList from './pages/RecipeList'
 import RecipeDetail from './pages/RecipeDetail'
 import AdminPanel from './pages/AdminPanel'
+import Archive from './pages/Archive'
 import { listUserSpots, getCurrentUser } from './api'
 
 const TABS = [
   { key: 'recipe', label: 'Рецепт', icon: '📝' },
   { key: 'brew', label: 'Заваривание', icon: '⏱️' },
   { key: 'results', label: 'Итоги', icon: '📊' },
-  { key: 'recipes', label: 'Архив', icon: '☕' },
+  { key: 'archive', label: 'Архив', icon: '☕' },
   { key: 'admin', label: 'Управление', icon: '⚙️' },
 ]
 
@@ -19,7 +20,7 @@ function getVisibleTabs(userRole) {
   const isBarista = userRole === 'barista'
   return TABS.filter((tab) => {
     if (tab.key === 'admin' && userRole !== 'owner') return false
-    if (tab.key === 'recipes' && isBarista) return false
+    if (tab.key === 'archive' && isBarista) return false
     return true
   })
 }
@@ -102,7 +103,7 @@ export default function App() {
   }, [])
 
   const handleGoToRecipes = useCallback(() => {
-    setActiveTab(userRole === 'barista' ? 'recipe' : 'recipes')
+    setActiveTab(userRole === 'barista' ? 'recipe' : 'archive')
   }, [userRole])
 
   const handleSelectRecipe = useCallback((r) => {
@@ -209,15 +210,15 @@ export default function App() {
             onGoToRecipes={handleGoToRecipes}
           />
         )}
-        {activeTab === 'recipes' && userRole !== 'barista' && !selectedRecipeId && (
-          <RecipeList
+        {activeTab === 'archive' && userRole !== 'barista' && !selectedRecipeId && (
+          <Archive
+            spotId={selectedSpotId}
             onSelectRecipe={handleSelectRecipe}
             onNewRecipe={handleNewRecipe}
-            spotId={selectedSpotId}
             userRole={userRole}
           />
         )}
-        {activeTab === 'recipes' && userRole !== 'barista' && selectedRecipeId && (
+        {activeTab === 'archive' && userRole !== 'barista' && selectedRecipeId && (
           <RecipeDetail
             recipeId={selectedRecipeId}
             onBack={handleBackToList}

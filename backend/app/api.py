@@ -11,7 +11,7 @@ from aiohttp import web
 
 from app.database import (
     Recipe, Measurement, Spot, Company, UserRole, User,
-    user_spots, calculate_extraction,
+    BrewHistory, user_spots, calculate_extraction,
 )
 from app.auth import get_current_user
 
@@ -698,6 +698,101 @@ async def handle_change_role(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# История заваров
+# ──────────────────────────────────────────────
+
+async def handle_save_brew_history(request: web.Request) -> web.Response:
+    """Сохранить завершённый завар в историю."""
+    user = await get_current_user(request)
+    session = request["db_session"]
+
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    coffee_beans = body.get("coffee_beans", "").strip()
+    brew_method = body.get("brew_method", "").strip()
+    weight_in = body.get("weight_in")
+    weight_out = body.get("weight_out")
+    brew_time = body.get("brew_time")
+    temperature = body.get("temperature")
+    recipe_id = body.get("recipe_id")
+    extraction = body.get("extraction")
+    tds = body.get("tds")
+
+    if not coffee_beans or not brew_method:
+        return web.json_response({"error": "coffee_beans and brew_method are required"}, status=400)
+    if not weight_in or not weight_out or not brew_time:
+        return web.json_response({"error": "weight_in, weight_out, brew_time are required"}, status=400)
+
+    # Определяем статус: within_spec если extraction в 18-22%, иначе out_of_limits
+    status = "within_spec"
+    if extraction is not None:
+        try:
+            ext_val = float(extraction)
+            if ext_val < 18 or ext_val > 22:
+                status = "out_of_limits"
+        except (ValueError, TypeError):
+            pass
+
+    record = BrewHistory(
+        user_id=user.id,
+        recipe_id=recipe_id if recipe_id else None,
+        coffee_beans=coffee_beans,
+        brew_method=brew_method,
+        weight_in=float(weight_in),
+        weight_out=float(weight_out),
+        brew_time=int(brew_time),
+        temperature=float(temperature) if temperature else None,
+        status=status,
+        extraction=float(extraction) if extraction else None,
+        tds=float(tds) if tds else None,
+    )
+    session.add(record)
+    session.commit()
+
+    return web.json_response({
+        "id": record.id,
+        "status": record.status,
+        "created_at": record.created_at.isoformat(),
+    }, status=201)
+
+
+async def handle_list_brew_history(request: web.Request) -> web.Response:
+    """Получить историю заваров текущего пользователя."""
+    user = await get_current_user(request)
+    session = request["db_session"]
+
+    records = (
+        session.query(BrewHistory)
+        .filter(BrewHistory.user_id == user.id)
+        .order_by(BrewHistory.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    result = []
+    for r in records:
+        result.append({
+            "id": r.id,
+            "recipe_id": r.recipe_id,
+            "coffee_beans": r.coffee_beans,
+            "brew_method": r.brew_method,
+            "weight_in": r.weight_in,
+            "weight_out": r.weight_out,
+            "brew_time": r.brew_time,
+            "temperature": r.temperature,
+            "status": r.status,
+            "extraction": r.extraction,
+            "tds": r.tds,
+            "created_at": r.created_at.isoformat(),
+        })
+
+    return web.json_response(result)
+
+
+# ──────────────────────────────────────────────
 # Регистрация маршрутов
 # ──────────────────────────────────────────────
 
@@ -715,11 +810,14 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
     app.router.add_post("/api/calculate", handle_calculate)
+    app.router.add_post("/api/history", handle_save_brew_history)
+    app.router.add_get("/api/history", handle_list_brew_history)
     logger.info(
         "API routes registered: "
         "GET /api/user/me, GET /api/user/company, GET /api/user/spots, "
         "POST /api/companies, POST /api/companies/change-role, "
         "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
-        "POST /api/calculate"
+        "POST /api/calculate, "
+        "POST/GET /api/history"
     )

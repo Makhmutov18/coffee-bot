@@ -7,6 +7,7 @@
   - user_spots: связь бариста с точками (M2M)
   - recipes: рецепты заваривания (личные и коммерческие)
   - measurements: замеры TDS и экстракции
+  - brew_history: история заваров пользователя
 
 Поддерживает SQLite (локально) и PostgreSQL (Railway / продакшн).
 """
@@ -253,6 +254,42 @@ class Measurement(Base):
         return (
             f"<Measurement(id={self.id}, recipe_id={self.recipe_id}, "
             f"beverage={self.beverage_weight}g, TDS={self.tds}%, Ext={self.extraction}%)>"
+        )
+
+
+# ──────────────────────────────────────────────
+# История заваров
+# ──────────────────────────────────────────────
+
+class BrewHistory(Base):
+    """История завершённых заваров пользователя."""
+
+    __tablename__ = "brew_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="ID пользователя")
+    recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="SET NULL"), nullable=True, comment="ID рецепта (если завар по рецепту)")
+
+    coffee_beans = Column(String(255), nullable=False, comment="Название зерна / сорта")
+    brew_method = Column(String(64), nullable=False, comment="Метод заваривания (V60 / Switch / AeroPress и т.д.)")
+    weight_in = Column(Float, nullable=False, comment="Вес закладки, г")
+    weight_out = Column(Float, nullable=False, comment="Вес напитка на выходе, г")
+    brew_time = Column(Integer, nullable=False, comment="Общее время заваривания, сек")
+    temperature = Column(Float, nullable=True, comment="Температура воды, °C")
+    status = Column(String(32), nullable=False, default="within_spec", comment="Статус: within_spec / out_of_limits")
+    extraction = Column(Float, nullable=True, comment="Рассчитанная экстракция, %")
+    tds = Column(Float, nullable=True, comment="TDS, %")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", backref="brew_history")
+    recipe = relationship("Recipe", backref="brew_history")
+
+    def __repr__(self) -> str:
+        return (
+            f"<BrewHistory(id={self.id}, user_id={self.user_id}, "
+            f"beans='{self.coffee_beans}', method='{self.brew_method}', "
+            f"status='{self.status}')>"
         )
 
 

@@ -92,3 +92,15 @@ export async function changeUserRole(userId, spotId, newRole) {
     body: JSON.stringify({ user_id: userId, spot_id: spotId, new_role: newRole }),
   })
 }
+
+export async function saveBrewHistory(data) {
+  return apiFetch(`${API_BASE}/api/history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function listBrewHistory() {
+  return apiFetch(`${API_BASE}/api/history`)
+}
