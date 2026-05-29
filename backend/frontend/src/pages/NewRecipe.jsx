@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { saveRecipe } from '../api'
 
 const DRIPPERS = [
   'Hario V60',
@@ -88,24 +89,29 @@ const GRINDERS = [
   'Другая...',
 ]
 
+const INITIAL_FORM = {
+  name: '',
+  roaster: '',
+  beanVariety: '',
+  beanProcessing: '',
+  dose: '',
+  dripperType: 'Hario V60',
+  dripperCustom: '',
+  grinderModel: '',
+  grinderCustom: '',
+  grindSetting: '',
+  totalWater: '',
+  waterTemp: '',
+  waterTds: '',
+  brewTime: '',
+  pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
+}
+
 export default function NewRecipe({ onSave, initialData, spotId }) {
-  const [form, setForm] = useState({
-    name: '',
-    roaster: '',
-    beanVariety: '',
-    beanProcessing: '',
-    dose: '',
-    dripperType: 'Hario V60',
-    dripperCustom: '',
-    grinderModel: '',
-    grinderCustom: '',
-    grindSetting: '',
-    totalWater: '',
-    waterTemp: '',
-    waterTds: '',
-    brewTime: '',
-    pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
-  })
+  const [form, setForm] = useState(INITIAL_FORM)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   // Pre-fill form when repeating a recipe
   useEffect(() => {
@@ -179,9 +185,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
     return form.grinderModel
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const steps = form.pourSteps
+  const buildSteps = () => {
+    return form.pourSteps
       .filter((s) => s.time !== '')
       .map((s) => {
         let totalSeconds = 0
@@ -199,7 +204,10 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           comment: s.comment || undefined,
         }
       })
-    const recipeData = {
+  }
+
+  const buildRecipeData = (steps) => {
+    const data = {
       name: form.name || undefined,
       roaster: form.roaster || undefined,
       beanVariety: form.beanVariety,
@@ -222,9 +230,37 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
       pourSteps: steps,
     }
     if (spotId) {
-      recipeData.spotId = spotId
+      data.spotId = spotId
     }
+    return data
+  }
+
+  const handleSaveOnly = async () => {
+    const steps = buildSteps()
+    const recipeData = buildRecipeData(steps)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await saveRecipe(recipeData)
+      setSaved(true)
+    } catch (e) {
+      setSaveError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const steps = buildSteps()
+    const recipeData = buildRecipeData(steps)
     onSave(recipeData)
+  }
+
+  const handleNewAgain = () => {
+    setForm(INITIAL_FORM)
+    setSaved(false)
+    setSaveError(null)
   }
 
   return (
@@ -469,13 +505,43 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
         </div>
       </div>
 
-      {/* ГЛАВНАЯ КНОПКА ЗАПУСКА */}
-      <button
-        type="submit"
-        className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-lg shadow-coffee-950/50 active:scale-[0.98] transition-all tracking-wide text-md"
-      >
-        Перейти к завариванию →
-      </button>
+      {saveError && (
+        <div className="text-red-400 text-sm text-center">{saveError}</div>
+      )}
+
+      {saved ? (
+        <div className="text-center py-6 space-y-4 animate-fade-in">
+          <div className="text-5xl">✅</div>
+          <p className="text-coffee-cream font-medium">Рецепт сохранён!</p>
+          <button
+            type="button"
+            onClick={handleNewAgain}
+            className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+          >
+            Создать ещё
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* ГЛАВНАЯ КНОПКА ЗАПУСКА */}
+          <button
+            type="submit"
+            className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-lg shadow-coffee-950/50 active:scale-[0.98] transition-all tracking-wide text-md"
+          >
+            Перейти к завариванию →
+          </button>
+
+          {/* КНОПКА СОХРАНЕНИЯ БЕЗ ЗАВАРИВАНИЯ */}
+          <button
+            type="button"
+            onClick={handleSaveOnly}
+            disabled={saving}
+            className="w-full py-3 bg-coffee-800 hover:bg-coffee-700 border border-coffee-700/50 text-coffee-200 font-medium rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {saving ? 'Сохранение...' : '💾 Сохранить рецепт без заваривания'}
+          </button>
+        </>
+      )}
     </form>
   )
 }

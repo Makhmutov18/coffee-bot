@@ -56,13 +56,13 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
         if (val.trim()) tastingData[key] = val.trim()
       }
 
-      await saveRecipe({
-        ...recipe,
-        beverageWeight: parseFloat(beverageWeight),
-        tds: parseFloat(tds),
-        extraction: extraction,
-        tastingNotes: Object.keys(tastingData).length > 0 ? tastingData : undefined,
-      })
+      const saveData = { ...recipe }
+      if (beverageWeight) saveData.beverageWeight = parseFloat(beverageWeight)
+      if (tds) saveData.tds = parseFloat(tds)
+      if (extraction !== null) saveData.extraction = extraction
+      if (Object.keys(tastingData).length > 0) saveData.tastingNotes = tastingData
+
+      await saveRecipe(saveData)
       setSaved(true)
     } catch (e) {
       setError(e.message)
@@ -229,7 +229,7 @@ export default function Results({ recipe, brewResults, onNewBrew, onNewRecipe, o
       <div className="space-y-2 pt-2">
         <button
           onClick={handleSave}
-          disabled={saving || !beverageWeight || !tds}
+          disabled={saving}
           className="w-full py-3.5 bg-coffee-500 hover:bg-coffee-400 text-coffee-50 font-medium rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
         >
           {saving ? 'Сохранение...' : '💾 Сохранить рецепт'}
