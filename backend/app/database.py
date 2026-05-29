@@ -410,15 +410,13 @@ def _migrate_existing_tables(engine) -> None:
 
 
 def _seed_grinder_mappings(engine) -> None:
-    """Заполнить таблицу grinder_mappings из JSON-файла grinders_data.json."""
-    from sqlalchemy import inspect as sa_inspect
-    inspector = sa_inspect(engine)
-    if inspector.has_table("grinder_mappings"):
-        with Session(bind=engine) as s:
-            if s.query(GrinderMapping).count() > 0:
-                logger.info("GrinderMapping already seeded, skipping")
-                return
+    """
+    Полная перезаливка таблицы grinder_mappings из JSON-файла grinders_data.json.
 
+    При каждом старте:
+      1. Удаляет ВСЕ старые записи (DELETE).
+      2. Вставляет 20 детализированных диапазонов из нового JSON.
+    """
     # Путь к JSON-файлу относительно backend/
     json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "newfile", "grinders_data.json")
     if not os.path.exists(json_path):
@@ -432,64 +430,92 @@ def _seed_grinder_mappings(engine) -> None:
         seed_data = json.load(f)
 
     with Session(bind=engine) as s:
-        for row in seed_data:
-            mapping = GrinderMapping(
-                micron_range=row.get("micron_range"),
-                method=row.get("method"),
-                comandante_c40=row.get("comandante_c40"),
-                mahlkonig_ek43=row.get("mahlkonig_ek43"),
-                timemore_c2=row.get("timemore_c2"),
-                kingrinder_k6=row.get("kingrinder_k6"),
-                mischief_m40=row.get("mischief_m40"),
-                onezpresso_zp6=row.get("onezpresso_zp6"),
-                fellow_ode_v2=row.get("fellow_ode_v2"),
-            )
-            s.add(mapping)
-        s.commit()
-    logger.info("GrinderMapping seeded with %d rows from %s", len(seed_data), json_path)
+        try:
+            # 1. Очищаем старые записи
+            deleted = s.query(GrinderMapping).delete()
+            s.flush()
+            logger.info("GrinderMapping: deleted %d old rows", deleted)
+
+            # 2. Вставляем новые 20 строк
+            for row in seed_data:
+                mapping = GrinderMapping(
+                    micron_range=row.get("micron_range"),
+                    method=row.get("method"),
+                    comandante_c40=row.get("comandante_c40"),
+                    mahlkonig_ek43=row.get("mahlkonig_ek43"),
+                    timemore_c2=row.get("timemore_c2"),
+                    kingrinder_k6=row.get("kingrinder_k6"),
+                    mischief_m40=row.get("mischief_m40"),
+                    onezpresso_zp6=row.get("onezpresso_zp6"),
+                    fellow_ode_v2=row.get("fellow_ode_v2"),
+                )
+                s.add(mapping)
+            s.commit()
+            logger.info("GrinderMapping seeded with %d rows from %s", len(seed_data), json_path)
+        except Exception:
+            s.rollback()
+            logger.exception("GrinderMapping seed failed")
+            raise
 
 
 def _parse_range_value(value_str: str) -> tuple[float, float] | None:
     """
-    Парсит строковое значение кофемолки в числовой диапазон.
+    Парсит строковое значение кофемолки в числовой диапазон (low, high).
 
-    Поддерживает форматы:
+    Поддерживает форматы (регистронезависимо):
       - '19-22 clicks' → (19.0, 22.0)
-      - '5.6-7.2' → (5.6, 7.2)
-      - '33+ clicks' → (33.0, float('inf'))
-      - '8.6+' → (8.6, float('inf'))
+      - '5.6-7.2'      → (5.6, 7.2)
+      - '33+ clicks'   → (33.0, inf)
+      - '8.6+'         → (8.6, inf)
+      - '17 clicks'    → (17.0, 17.0)  # одиночное число
+      - '14'           → (14.0, 14.0)
       - 'не рекомендуется' → None
+      - None / ''      → None
     """
     if not value_str:
         return None
-    s = value_str.strip().lower()
-    if s == "не рекомендуется" or s == "не рекоменд.":
+    s = value_str.strip()
+    if not s:
         return None
-    # Убираем единицы измерения (clicks, обороты и т.д.)
+
+    # Проверка на "не рекомендуется" (регистронезависимо)
+    s_lower = s.lower()
+    if s_lower == "не рекомендуется" or s_lower == "не рекоменд.":
+        return None
+
+    # Убираем единицы измерения (clicks, об., оборотов, деления, дел.)
     for suffix in [" clicks", " об.", " оборотов", " деления", " дел."]:
-        s = s.replace(suffix, "")
+        idx = s_lower.find(suffix)
+        if idx != -1:
+            s = s[:idx]
+            break
     s = s.strip()
+    if not s:
+        return None
+
     # Парсим диапазон с плюсом: "33+" или "8.6+"
-    if "+" in s:
+    if s.endswith("+"):
         try:
-            low = float(s.replace("+", "").strip())
+            low = float(s[:-1].strip())
             return (low, float("inf"))
-        except ValueError:
+        except (ValueError, TypeError):
             return None
-    # Парсим диапазон: "19-22" или "5.6-7.2"
+
+    # Парсим диапазон с дефисом: "19-22" или "5.6-7.2"
     if "-" in s:
         parts = s.split("-", 1)
         try:
             low = float(parts[0].strip())
             high = float(parts[1].strip())
             return (low, high)
-        except ValueError:
+        except (ValueError, TypeError):
             return None
+
     # Одиночное число
     try:
         v = float(s)
         return (v, v)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -497,10 +523,13 @@ def convert_grinder_value(
     from_grinder: str,
     to_grinder: str,
     value: str,
-    session: Optional[Session] = None,
 ) -> dict | None:
     """
     Конвертировать значение помола между кофемолками через таблицу просеивания.
+
+    СИНХРОННАЯ функция — ВСЕГДА создаёт свою сессию.
+    Должна вызываться через asyncio.to_thread() из async-хендлера,
+    чтобы не блокировать event loop.
 
     Параметры
     ---------
@@ -510,8 +539,6 @@ def convert_grinder_value(
         Имя колонки целевой кофемолки (например, 'timemore_c2').
     value : str
         Строковое значение на исходной кофемолке (например, '20' или '19-22').
-    session : Session, optional
-        Сессия SQLAlchemy из middleware. Если не передана, создаётся временная.
 
     Возвращает
     ----------
@@ -533,68 +560,64 @@ def convert_grinder_value(
     # Берём среднюю точку для поиска
     input_mid = (input_low + input_high) / 2 if input_high != float("inf") else input_low
 
-    def _do_convert(s):
-        """Внутренняя функция конвертации, принимает сессию."""
-        # Загружаем все строки, где from_grinder колонка не NULL
-        all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).all()
-        if not all_rows:
-            return None
+    engine = init_engine()
+    with Session(bind=engine) as s:
+        try:
+            # Загружаем все строки, где from_grinder колонка не NULL
+            all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).all()
+            if not all_rows:
+                return None
 
-        # Для каждой строки парсим её значение и ищем, куда попадает input_mid
-        best_match = None
-        best_distance = float("inf")
+            # Для каждой строки парсим её значение и ищем, куда попадает input_mid
+            best_match = None
+            best_distance = float("inf")
 
-        for row in all_rows:
-            row_raw = getattr(row, from_grinder)
-            if row_raw is None:
-                continue
-            row_range = _parse_range_value(row_raw)
-            if row_range is None:
-                continue
-            row_low, row_high = row_range
+            for row in all_rows:
+                row_raw = getattr(row, from_grinder)
+                if row_raw is None:
+                    continue
+                row_range = _parse_range_value(row_raw)
+                if row_range is None:
+                    continue
+                row_low, row_high = row_range
 
-            # Проверяем, попадает ли input_mid в диапазон строки
-            if row_low <= input_mid <= row_high:
-                # Точное попадание
-                best_match = row
-                break
-            else:
-                # Ищем ближайший
-                row_mid = (row_low + row_high) / 2 if row_high != float("inf") else row_low
-                dist = abs(row_mid - input_mid)
-                if dist < best_distance:
-                    best_distance = dist
+                # Проверяем, попадает ли input_mid в диапазон строки
+                if row_low <= input_mid <= row_high:
+                    # Точное попадание
                     best_match = row
+                    break
+                else:
+                    # Ищем ближайший
+                    row_mid = (row_low + row_high) / 2 if row_high != float("inf") else row_low
+                    dist = abs(row_mid - input_mid)
+                    if dist < best_distance:
+                        best_distance = dist
+                        best_match = row
 
-        if best_match is None:
-            return None
+            if best_match is None:
+                return None
 
-        to_value_raw = getattr(best_match, to_grinder)
-        if to_value_raw is None:
+            to_value_raw = getattr(best_match, to_grinder)
+            if to_value_raw is None:
+                return {
+                    "from_grinder": from_grinder,
+                    "to_grinder": to_grinder,
+                    "from_value": value,
+                    "to_value": "Не рекомендуется",
+                    "micron_range": best_match.micron_range,
+                    "method": best_match.method,
+                }
+
             return {
                 "from_grinder": from_grinder,
                 "to_grinder": to_grinder,
                 "from_value": value,
-                "to_value": "не рекомендуется",
+                "to_value": to_value_raw,
                 "micron_range": best_match.micron_range,
                 "method": best_match.method,
             }
-
-        return {
-            "from_grinder": from_grinder,
-            "to_grinder": to_grinder,
-            "from_value": value,
-            "to_value": to_value_raw,
-            "micron_range": best_match.micron_range,
-            "method": best_match.method,
-        }
-
-    if session is not None:
-        return _do_convert(session)
-    # Fallback: создаём временную сессию (для обратной совместимости)
-    engine = init_engine()
-    with Session(bind=engine) as s:
-        return _do_convert(s)
+        finally:
+            s.close()
 
 
 def init_database() -> None:

@@ -2,6 +2,7 @@
 API-эндпоинты для Telegram Mini App.
 """
 
+import asyncio
 import json
 import logging
 import secrets
@@ -439,30 +440,49 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
     try:
         query = session.query(Recipe)
 
-        # Если роль personal или spot_id не передан — личные рецепты
-        if user.role == UserRole.personal.value or not spot_id:
-            query = query.filter(Recipe.user_id == user.id)
-        else:
-            spot_id_int = int(spot_id)
+        # ── Manager: личные рецепты + ВСЕ коммерческие рецепты своих спотов ──
+        if user.role == UserRole.manager.value:
+            # Список spot_id, к которым привязан manager
+            attached = (
+                session.query(user_spots.c.spot_id)
+                .filter(user_spots.c.user_id == user.id)
+                .all()
+            )
+            attached_spot_ids = [row[0] for row in attached]
 
-            # Для manager проверяем, что он привязан к этому споту
-            if user.role == UserRole.manager.value:
-                is_attached = (
-                    session.query(user_spots)
-                    .filter(
-                        user_spots.c.user_id == user.id,
-                        user_spots.c.spot_id == spot_id_int,
-                    )
-                    .first()
-                )
-                if not is_attached:
+            if spot_id:
+                spot_id_int = int(spot_id)
+                # Если запрошен конкретный спот — проверяем привязку
+                if spot_id_int not in attached_spot_ids:
                     return web.json_response(
                         {"error": "У вас нет доступа к рецептам этой точки"},
                         status=403,
                     )
+                query = query.filter(Recipe.spot_id == spot_id_int)
+            else:
+                # Без spotId: личные рецепты + рецепты всех привязанных спотов
+                query = query.filter(
+                    (Recipe.user_id == user.id) |
+                    (Recipe.spot_id.in_(attached_spot_ids) if attached_spot_ids else False)
+                )
 
-            # Коммерческие рецепты по споту
-            query = query.filter(Recipe.spot_id == spot_id_int)
+        # ── Owner: все рецепты по споту (или личные, если без spotId) ──
+        elif user.role == UserRole.owner.value:
+            if spot_id:
+                query = query.filter(Recipe.spot_id == int(spot_id))
+            else:
+                query = query.filter(Recipe.user_id == user.id)
+
+        # ── Barista: только коммерческие рецепты по споту ──
+        elif user.role == UserRole.barista.value:
+            if spot_id:
+                query = query.filter(Recipe.spot_id == int(spot_id))
+            else:
+                query = query.filter(Recipe.user_id == user.id)
+
+        # ── Personal: только личные рецепты ──
+        else:
+            query = query.filter(Recipe.user_id == user.id)
 
         recipes = query.order_by(Recipe.created_at.desc()).all()
         result = [_serialize_recipe(r) for r in recipes]
@@ -612,8 +632,11 @@ async def handle_convert_grinder(request: web.Request) -> web.Response:
             status=400,
         )
 
-    session = request.get("db_session")
-    result = convert_grinder_value(from_grinder, to_grinder, value, session=session)
+    # Выполняем синхронную convert_grinder_value в отдельном потоке,
+    # чтобы не блокировать event loop (предотвращает HTTP 499 timeout)
+    result = await asyncio.to_thread(
+        convert_grinder_value, from_grinder, to_grinder, value
+    )
     if result is None:
         return web.json_response(
             {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок или значение."},
