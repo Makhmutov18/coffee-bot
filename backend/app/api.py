@@ -443,9 +443,26 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
         if user.role == UserRole.personal.value or not spot_id:
             query = query.filter(Recipe.user_id == user.id)
         else:
+            spot_id_int = int(spot_id)
+
+            # Для manager проверяем, что он привязан к этому споту
+            if user.role == UserRole.manager.value:
+                is_attached = (
+                    session.query(user_spots)
+                    .filter(
+                        user_spots.c.user_id == user.id,
+                        user_spots.c.spot_id == spot_id_int,
+                    )
+                    .first()
+                )
+                if not is_attached:
+                    return web.json_response(
+                        {"error": "У вас нет доступа к рецептам этой точки"},
+                        status=403,
+                    )
+
             # Коммерческие рецепты по споту
-            # barista может только читать — это разрешено
-            query = query.filter(Recipe.spot_id == int(spot_id))
+            query = query.filter(Recipe.spot_id == spot_id_int)
 
         recipes = query.order_by(Recipe.created_at.desc()).all()
         result = [_serialize_recipe(r) for r in recipes]
@@ -595,7 +612,8 @@ async def handle_convert_grinder(request: web.Request) -> web.Response:
             status=400,
         )
 
-    result = convert_grinder_value(from_grinder, to_grinder, value)
+    session = request.get("db_session")
+    result = convert_grinder_value(from_grinder, to_grinder, value, session=session)
     if result is None:
         return web.json_response(
             {"error": "Не удалось выполнить конвертацию. Проверьте названия кофемолок или значение."},

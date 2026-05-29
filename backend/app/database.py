@@ -497,6 +497,7 @@ def convert_grinder_value(
     from_grinder: str,
     to_grinder: str,
     value: str,
+    session: Optional[Session] = None,
 ) -> dict | None:
     """
     Конвертировать значение помола между кофемолками через таблицу просеивания.
@@ -509,6 +510,8 @@ def convert_grinder_value(
         Имя колонки целевой кофемолки (например, 'timemore_c2').
     value : str
         Строковое значение на исходной кофемолке (например, '20' или '19-22').
+    session : Session, optional
+        Сессия SQLAlchemy из middleware. Если не передана, создаётся временная.
 
     Возвращает
     ----------
@@ -516,22 +519,22 @@ def convert_grinder_value(
         { 'from_grinder': ..., 'to_grinder': ..., 'from_value': ..., 'to_value': ...,
           'micron_range': ..., 'method': ... } или None, если конвертация невозможна.
     """
-    engine = init_engine()
-    with Session(bind=engine) as s:
-        from_col = getattr(GrinderMapping, from_grinder, None)
-        to_col = getattr(GrinderMapping, to_grinder, None)
-        if from_col is None or to_col is None:
-            logger.warning("Unknown grinder column: %s or %s", from_grinder, to_grinder)
-            return None
+    from_col = getattr(GrinderMapping, from_grinder, None)
+    to_col = getattr(GrinderMapping, to_grinder, None)
+    if from_col is None or to_col is None:
+        logger.warning("Unknown grinder column: %s or %s", from_grinder, to_grinder)
+        return None
 
-        # Парсим переданное значение
-        parsed_input = _parse_range_value(value)
-        if parsed_input is None:
-            return None
-        input_low, input_high = parsed_input
-        # Берём среднюю точку для поиска
-        input_mid = (input_low + input_high) / 2 if input_high != float("inf") else input_low
+    # Парсим переданное значение
+    parsed_input = _parse_range_value(value)
+    if parsed_input is None:
+        return None
+    input_low, input_high = parsed_input
+    # Берём среднюю точку для поиска
+    input_mid = (input_low + input_high) / 2 if input_high != float("inf") else input_low
 
+    def _do_convert(s):
+        """Внутренняя функция конвертации, принимает сессию."""
         # Загружаем все строки, где from_grinder колонка не NULL
         all_rows = s.query(GrinderMapping).filter(from_col.isnot(None)).all()
         if not all_rows:
@@ -585,6 +588,13 @@ def convert_grinder_value(
             "micron_range": best_match.micron_range,
             "method": best_match.method,
         }
+
+    if session is not None:
+        return _do_convert(session)
+    # Fallback: создаём временную сессию (для обратной совместимости)
+    engine = init_engine()
+    with Session(bind=engine) as s:
+        return _do_convert(s)
 
 
 def init_database() -> None:
