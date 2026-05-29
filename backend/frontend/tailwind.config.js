@@ -7,22 +7,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        coffee: {
-          50: '#fdf8f0',
-          100: '#f5e6d0',
-          200: '#e8cba0',
-          300: '#d4a574',
-          400: '#c0854f',
-          500: '#a06b3f',
-          600: '#7a5232',
-          700: '#5c3d26',
-          800: '#3f2a1a',
-          900: '#2c1d12',
-          950: '#1a0f08',
+        tech: {
+          accent: '#DEFF9A',
+          surface: '#0A0A0A',
+          border: '#1E293B',
+          primary: '#F8FAFC',
+          secondary: '#94A3B8',
+          bg: '#000000',
+          input: '#050505',
         },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        heading: ['Urbanist', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+      },
+      borderRadius: {
+        '2xl': '24px',
+        xl: '16px',
+        lg: '12px',
       },
     },
   },

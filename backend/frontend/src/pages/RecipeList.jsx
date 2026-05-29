@@ -37,7 +37,7 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
   if (loading) {
     return (
       <div className="text-center py-8">
-        <div className="text-coffee-latte">Загрузка рецептов...</div>
+        <div className="text-tech-secondary">Загрузка рецептов...</div>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
         <div className="text-red-400">Ошибка: {error}</div>
         <button
           onClick={loadRecipes}
-          className="px-4 py-2 rounded-lg bg-coffee-brown text-coffee-cream hover:bg-coffee-gold hover:text-coffee-dark transition"
+          className="px-4 py-2 rounded-xl bg-tech-surface border border-tech-border text-tech-primary hover:brightness-125 transition"
         >
           Повторить
         </button>
@@ -61,11 +61,11 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-coffee-cream">Мои рецепты</h2>
+        <h2 className="text-xl font-heading font-semibold text-tech-primary">Мои рецепты</h2>
         {!isReadOnly && (
           <button
             onClick={onNewRecipe}
-            className="px-4 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold text-sm hover:bg-yellow-500 transition"
+            className="px-4 py-2 rounded-xl bg-tech-accent text-black font-bold text-sm hover:brightness-110 transition"
           >
             + Новый
           </button>
@@ -73,40 +73,40 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
       </div>
 
       {recipes.length === 0 ? (
-        <div className="text-center py-8 text-coffee-latte">
+        <div className="text-center py-8 text-tech-secondary">
           <p>У вас пока нет сохранённых рецептов.</p>
           {!isReadOnly && (
             <button
               onClick={onNewRecipe}
-              className="mt-4 px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+              className="mt-4 px-6 py-2 rounded-xl bg-tech-accent text-black font-bold hover:brightness-110 transition"
             >
               Создать первый рецепт
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="bento-grid">
           {recipes.map((r) => (
             <button
               key={r.id}
               onClick={() => onSelectRecipe(r)}
-              className="w-full text-left bg-coffee-dark rounded-lg p-4 border border-coffee-brown hover:border-coffee-gold transition"
+              className="w-full text-left card p-4 hover:border-tech-accent transition-all duration-200 hover:shadow-[0_0_16px_rgba(222,255,154,0.08)]"
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0">
-                  <div className="text-coffee-cream font-medium truncate">
+                  <div className="text-tech-primary font-medium truncate">
                     {r.name ? r.name : (r.roaster ? `${r.roaster} — ` : '') + r.beanVariety}
                   </div>
-                  <div className="text-coffee-latte text-xs mt-1">
+                  <div className="text-tech-secondary text-xs mt-1">
                     {r.dripperType} · {r.dose}г · {r.totalWater}мл
                   </div>
                   {r.lastMeasurement && (
-                    <div className="text-coffee-gold text-xs mt-1">
+                    <div className="text-tech-accent text-xs mt-1">
                       Экстракция: {r.lastMeasurement.extraction}% · TDS: {r.lastMeasurement.tds}%
                     </div>
                   )}
                 </div>
-                <div className="text-coffee-latte text-xs ml-2 whitespace-nowrap">
+                <div className="text-tech-secondary text-xs ml-2 whitespace-nowrap">
                   {formatDate(r.createdAt)}
                 </div>
               </div>

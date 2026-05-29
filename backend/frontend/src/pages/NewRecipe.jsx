@@ -114,7 +114,6 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
-  // Pre-fill form when repeating a recipe
   useEffect(() => {
     if (initialData) {
       const dripperIsCustom = initialData.dripperType && !DRIPPERS.slice(0, -1).includes(initialData.dripperType)
@@ -267,13 +266,13 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-6 pb-12 animate-fade-in">
       {/* СЕКЦИЯ 1: ЗЕРНО */}
-      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+      <div className="card p-5 space-y-4">
+        <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-tech-secondary flex items-center gap-2">
           <span>🌿</span> Профиль зерна
         </h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Название рецепта</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Название рецепта</label>
             <input
               type="text"
               value={form.name}
@@ -282,7 +281,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             />
           </div>
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Обжарщик</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Обжарщик</label>
             <input
               type="text"
               value={form.roaster}
@@ -292,7 +291,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-coffee-300 font-medium mb-1 block">Сорт / Регион *</label>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Сорт / Регион *</label>
               <input
                 type="text"
                 value={form.beanVariety}
@@ -302,7 +301,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
               />
             </div>
             <div>
-              <label className="text-xs text-coffee-300 font-medium mb-1 block">Обработка</label>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">Обработка</label>
               <input
                 type="text"
                 value={form.beanProcessing}
@@ -315,14 +314,13 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
       </div>
 
       {/* СЕКЦИЯ 2: ОБОРУДОВАНИЕ И ПАРАМЕТРЫ */}
-      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+      <div className="card p-5 space-y-4">
+        <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-tech-secondary flex items-center gap-2">
           <span>⚙️</span> Параметры экстракции
         </h3>
 
-        {/* Воронка */}
         <div>
-          <label className="text-xs text-coffee-300 font-medium mb-2 block">Тип девайса *</label>
+          <label className="text-xs text-tech-primary font-medium mb-2 block">Тип девайса *</label>
           <select
             value={form.dripperType}
             onChange={handleChange('dripperType')}
@@ -345,7 +343,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Кофемолка</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Кофемолка</label>
             <select
               value={form.grinderModel}
               onChange={handleChange('grinderModel')}
@@ -367,7 +365,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             )}
           </div>
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Помол (клики)</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Помол (клики)</label>
             <input
               type="text"
               value={form.grindSetting}
@@ -379,7 +377,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
 
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Кофе (гр) *</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Кофе (гр) *</label>
             <input
               type="text"
               inputMode="decimal"
@@ -392,7 +390,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             />
           </div>
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Вода (мл) *</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Вода (мл) *</label>
             <input
               type="text"
               inputMode="decimal"
@@ -405,7 +403,7 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
             />
           </div>
           <div>
-            <label className="text-xs text-coffee-300 font-medium mb-1 block">Темп. (°C)</label>
+            <label className="text-xs text-tech-primary font-medium mb-1 block">Темп. (°C)</label>
             <input
               type="text"
               inputMode="decimal"
@@ -418,9 +416,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           </div>
         </div>
 
-        {/* TDS воды */}
         <div>
-          <label className="text-xs text-coffee-300 font-medium mb-1 block">Минерализация воды (ppm)</label>
+          <label className="text-xs text-tech-primary font-medium mb-1 block">Минерализация воды (ppm)</label>
           <input
             type="text"
             inputMode="decimal"
@@ -431,9 +428,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           />
         </div>
 
-        {/* Общее время заваривания */}
         <div>
-          <label className="text-xs text-coffee-300 font-medium mb-1 block">Общее время заваривания (MM:SS)</label>
+          <label className="text-xs text-tech-primary font-medium mb-1 block">Общее время заваривания (MM:SS)</label>
           <input
             type="text"
             value={form.brewTime}
@@ -444,15 +440,15 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
       </div>
 
       {/* СЕКЦИЯ 3: ШАГИ ВЛИВАНИЙ */}
-      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
+      <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-tech-secondary flex items-center gap-2">
             <span>⏳</span> Схема проливов
           </h3>
           <button
             type="button"
             onClick={addStep}
-            className="text-xs font-medium text-coffee-300 hover:text-coffee-100 bg-coffee-800/60 px-2.5 py-1 rounded-lg border border-coffee-700/50 transition-all"
+            className="text-xs font-medium text-tech-primary bg-tech-surface border-tech-border px-2.5 py-1 rounded-lg border transition-all hover:brightness-125"
           >
             + Добавить шаг
           </button>
@@ -460,14 +456,14 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
 
         <div className="space-y-2">
           {form.pourSteps.map((step, i) => (
-            <div key={i} className="bg-coffee-950/60 p-3 rounded-xl border border-coffee-800/30 space-y-2">
+            <div key={i} className="bg-black/60 p-3 rounded-xl border border-tech-border space-y-2">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={step.time}
                   onChange={handleStepChange(i, 'time')}
                   placeholder="00:00"
-                  className="w-20 !bg-transparent !p-1 !border-0 text-sm font-mono text-coffee-300 focus:!shadow-none"
+                  className="w-20 !bg-transparent !p-1 !border-0 text-sm font-mono text-tech-primary focus:!shadow-none"
                 />
                 <input
                   type="text"
@@ -490,19 +486,18 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
                   <button
                     type="button"
                     onClick={() => removeStep(i)}
-                    className="text-coffee-700 hover:text-red-400 p-1 text-sm transition-colors"
+                    className="text-tech-secondary/30 hover:text-red-400 p-1 text-sm transition-colors"
                   >
                     ✕
                   </button>
                 )}
               </div>
-              {/* Комментарий к шагу */}
               <input
                 type="text"
                 value={step.comment}
                 onChange={handleStepChange(i, 'comment')}
                 placeholder="Комментарий к шагу (необязательно)"
-                className="!bg-transparent !p-1 !border-0 text-xs text-coffee-400 focus:!shadow-none"
+                className="!bg-transparent !p-1 !border-0 text-xs text-tech-secondary focus:!shadow-none"
               />
             </div>
           ))}
@@ -516,31 +511,29 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
       {saved ? (
         <div className="text-center py-6 space-y-4 animate-fade-in">
           <div className="text-5xl">✅</div>
-          <p className="text-coffee-cream font-medium">Рецепт сохранён!</p>
+          <p className="text-tech-primary font-medium">Рецепт сохранён!</p>
           <button
             type="button"
             onClick={handleNewAgain}
-            className="px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+            className="px-6 py-2 rounded-xl bg-tech-accent text-black font-bold hover:brightness-110 transition"
           >
             Создать ещё
           </button>
         </div>
       ) : (
         <>
-          {/* ГЛАВНАЯ КНОПКА ЗАПУСКА */}
           <button
             type="submit"
-            className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-lg shadow-coffee-950/50 active:scale-[0.98] transition-all tracking-wide text-md"
+            className="w-full py-4 bg-tech-accent text-black font-bold rounded-xl shadow-lg shadow-tech-accent/10 active:scale-[0.98] transition-all tracking-wide text-md"
           >
             Перейти к завариванию →
           </button>
 
-          {/* КНОПКА СОХРАНЕНИЯ БЕЗ ЗАВАРИВАНИЯ */}
           <button
             type="button"
             onClick={handleSaveOnly}
             disabled={saving}
-            className="w-full py-3 bg-coffee-800 hover:bg-coffee-700 border border-coffee-700/50 text-coffee-200 font-medium rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+            className="w-full py-3 bg-tech-surface hover:brightness-125 border border-tech-border text-tech-primary font-medium rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? 'Сохранение...' : '💾 Сохранить рецепт без заваривания'}
           </button>

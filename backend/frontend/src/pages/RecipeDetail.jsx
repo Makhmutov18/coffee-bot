@@ -58,14 +58,14 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-coffee-latte">Загрузка...</div>
+    return <div className="text-center py-8 text-tech-secondary">Загрузка...</div>
   }
 
   if (error) {
     return (
       <div className="text-center py-8 space-y-4">
         <div className="text-red-400">Ошибка: {error}</div>
-        <button onClick={onBack} className="text-coffee-gold">Назад</button>
+        <button onClick={onBack} className="text-tech-accent">Назад</button>
       </div>
     )
   }
@@ -74,87 +74,85 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
 
   return (
     <div className="space-y-6">
-      <button onClick={onBack} className="text-coffee-gold text-sm mb-2">← Назад к списку</button>
+      <button onClick={onBack} className="text-tech-accent text-sm mb-2">← Назад к списку</button>
 
-      <h2 className="text-xl font-bold text-coffee-cream">
+      <h2 className="text-xl font-heading font-semibold text-tech-primary">
         {recipe.name || (recipe.roaster ? `${recipe.roaster} — ` : '') + recipe.beanVariety}
       </h2>
 
-      <div className="text-coffee-latte text-xs">{formatDate(recipe.createdAt)}</div>
+      <div className="text-tech-secondary text-xs">{formatDate(recipe.createdAt)}</div>
 
-      {/* Параметры */}
-      <div className="bg-coffee-dark rounded-lg p-4 space-y-2 text-sm">
+      <div className="card p-4 space-y-2 text-sm">
         {recipe.name && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Название:</span>
-            <span className="text-coffee-cream">{recipe.name}</span>
+            <span className="text-tech-secondary">Название:</span>
+            <span className="text-tech-primary">{recipe.name}</span>
           </div>
         )}
         <div className="flex justify-between">
-          <span className="text-coffee-latte">Сорт:</span>
-          <span className="text-coffee-cream">{recipe.beanVariety}</span>
+          <span className="text-tech-secondary">Сорт:</span>
+          <span className="text-tech-primary">{recipe.beanVariety}</span>
         </div>
         {recipe.roaster && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Обжарщик:</span>
-            <span className="text-coffee-cream">{recipe.roaster}</span>
+            <span className="text-tech-secondary">Обжарщик:</span>
+            <span className="text-tech-primary">{recipe.roaster}</span>
           </div>
         )}
         {recipe.beanProcessing && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Обработка:</span>
-            <span className="text-coffee-cream">{recipe.beanProcessing}</span>
+            <span className="text-tech-secondary">Обработка:</span>
+            <span className="text-tech-primary">{recipe.beanProcessing}</span>
           </div>
         )}
         <div className="flex justify-between">
-          <span className="text-coffee-latte">Доза:</span>
-          <span className="text-coffee-cream">{recipe.dose} г</span>
+          <span className="text-tech-secondary">Доза:</span>
+          <span className="text-tech-primary">{recipe.dose} г</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-coffee-latte">Воронка:</span>
-          <span className="text-coffee-cream">{recipe.dripperType}</span>
+          <span className="text-tech-secondary">Воронка:</span>
+          <span className="text-tech-primary">{recipe.dripperType}</span>
         </div>
         {recipe.grinderModel && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Кофемолка:</span>
-            <span className="text-coffee-cream">{recipe.grinderModel}</span>
+            <span className="text-tech-secondary">Кофемолка:</span>
+            <span className="text-tech-primary">{recipe.grinderModel}</span>
           </div>
         )}
         {recipe.grindSetting && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Помол:</span>
-            <span className="text-coffee-cream">{recipe.grindSetting}</span>
+            <span className="text-tech-secondary">Помол:</span>
+            <span className="text-tech-primary">{recipe.grindSetting}</span>
           </div>
         )}
         <div className="flex justify-between">
-          <span className="text-coffee-latte">Вода:</span>
-          <span className="text-coffee-cream">{recipe.totalWater} мл</span>
+          <span className="text-tech-secondary">Вода:</span>
+          <span className="text-tech-primary">{recipe.totalWater} мл</span>
         </div>
         {recipe.waterTemp && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">Температура:</span>
-            <span className="text-coffee-cream">{recipe.waterTemp}°C</span>
+            <span className="text-tech-secondary">Температура:</span>
+            <span className="text-tech-primary">{recipe.waterTemp}°C</span>
           </div>
         )}
         {recipe.waterTds && (
           <div className="flex justify-between">
-            <span className="text-coffee-latte">TDS воды:</span>
-            <span className="text-coffee-cream">{recipe.waterTds} ppm</span>
+            <span className="text-tech-secondary">TDS воды:</span>
+            <span className="text-tech-primary">{recipe.waterTds} ppm</span>
           </div>
         )}
       </div>
 
-      {/* Шаги пролива */}
       {recipe.pourSteps && recipe.pourSteps.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-coffee-cream mb-2">Шаги пролива</h3>
+          <h3 className="text-lg font-heading font-semibold text-tech-primary mb-2">Шаги пролива</h3>
           <div className="space-y-1">
             {recipe.pourSteps.map((step, i) => (
-              <div key={i} className="flex justify-between text-sm bg-coffee-dark rounded px-3 py-2">
-                <span className="text-coffee-latte">
+              <div key={i} className="flex justify-between text-sm card px-3 py-2">
+                <span className="text-tech-secondary">
                   {step.action === 'bloom' ? 'Блум' : 'Вливание'}
                 </span>
-                <span className="text-coffee-cream">
+                <span className="text-tech-primary">
                   {formatTime(step.time)}
                   {step.volume ? ` · ${step.volume} мл` : ''}
                 </span>
@@ -164,85 +162,82 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
         </div>
       )}
 
-      {/* Замеры */}
       {recipe.measurements && recipe.measurements.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-coffee-cream mb-2">Замеры</h3>
+          <h3 className="text-lg font-heading font-semibold text-tech-primary mb-2">Замеры</h3>
           {recipe.measurements.map((m) => (
-            <div key={m.id} className="bg-coffee-dark rounded-lg p-3 space-y-1 text-sm">
+            <div key={m.id} className="card p-3 space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-coffee-latte">Вес напитка:</span>
-                <span className="text-coffee-cream">{m.beverageWeight} г</span>
+                <span className="text-tech-secondary">Вес напитка:</span>
+                <span className="text-tech-primary">{m.beverageWeight} г</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-coffee-latte">TDS:</span>
-                <span className="text-coffee-cream">{m.tds}%</span>
+                <span className="text-tech-secondary">TDS:</span>
+                <span className="text-tech-primary">{m.tds}%</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-coffee-latte">Экстракция:</span>
-                <span className="text-coffee-gold font-bold">{m.extraction}%</span>
+                <span className="text-tech-secondary">Экстракция:</span>
+                <span className="text-tech-accent font-bold">{m.extraction}%</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Дегустационный профиль */}
       {recipe.tastingNotes && Object.keys(recipe.tastingNotes).length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-coffee-cream mb-2">Дегустационный профиль</h3>
-          <div className="bg-coffee-dark rounded-lg p-4 space-y-2 text-sm">
+          <h3 className="text-lg font-heading font-semibold text-tech-primary mb-2">Дегустационный профиль</h3>
+          <div className="card p-4 space-y-2 text-sm">
             {recipe.tastingNotes.aroma && (
               <div>
-                <span className="text-coffee-latte">Аромат: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.aroma}</span>
+                <span className="text-tech-secondary">Аромат: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.aroma}</span>
               </div>
             )}
             {recipe.tastingNotes.flavor && (
               <div>
-                <span className="text-coffee-latte">Вкус: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.flavor}</span>
+                <span className="text-tech-secondary">Вкус: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.flavor}</span>
               </div>
             )}
             {recipe.tastingNotes.aftertaste && (
               <div>
-                <span className="text-coffee-latte">Послевкусие: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.aftertaste}</span>
+                <span className="text-tech-secondary">Послевкусие: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.aftertaste}</span>
               </div>
             )}
             {recipe.tastingNotes.acidity && (
               <div>
-                <span className="text-coffee-latte">Кислотность: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.acidity}</span>
+                <span className="text-tech-secondary">Кислотность: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.acidity}</span>
               </div>
             )}
             {recipe.tastingNotes.body && (
               <div>
-                <span className="text-coffee-latte">Тело: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.body}</span>
+                <span className="text-tech-secondary">Тело: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.body}</span>
               </div>
             )}
             {recipe.tastingNotes.balance && (
               <div>
-                <span className="text-coffee-latte">Баланс: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.balance}</span>
+                <span className="text-tech-secondary">Баланс: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.balance}</span>
               </div>
             )}
             {recipe.tastingNotes.cleanCup && (
               <div>
-                <span className="text-coffee-latte">Чистота чашки: </span>
-                <span className="text-coffee-cream">{recipe.tastingNotes.cleanCup}</span>
+                <span className="text-tech-secondary">Чистота чашки: </span>
+                <span className="text-tech-primary">{recipe.tastingNotes.cleanCup}</span>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Кнопки */}
       <div className="flex gap-3">
         <button
           onClick={() => onRepeat(recipe)}
-          className="flex-1 py-3 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+          className="flex-1 py-3 rounded-xl bg-tech-accent text-black font-bold hover:brightness-110 transition"
         >
           Повторить
         </button>
@@ -251,7 +246,7 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
             {!confirmDelete ? (
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="px-4 py-3 rounded-lg border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
+                className="px-4 py-3 rounded-xl border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
               >
                 Удалить
               </button>
@@ -259,14 +254,14 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="px-3 py-3 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition text-sm"
+                  className="px-3 py-3 rounded-xl border border-tech-border text-tech-primary hover:brightness-125 transition text-sm"
                 >
                   Отмена
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-3 py-3 rounded-lg bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
+                  className="px-3 py-3 rounded-xl bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
                 >
                   {deleting ? '...' : '✓ Удалить'}
                 </button>

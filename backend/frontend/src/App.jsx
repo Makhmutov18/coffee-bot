@@ -18,9 +18,7 @@ const TABS = [
 function getVisibleTabs(userRole) {
   const isBarista = userRole === 'barista'
   return TABS.filter((tab) => {
-    // Admin — только для owner
     if (tab.key === 'admin' && userRole !== 'owner') return false
-    // Архив — скрыт для barista (список рецептов на первой вкладке)
     if (tab.key === 'recipes' && isBarista) return false
     return true
   })
@@ -44,7 +42,6 @@ export default function App() {
     }
   }, [])
 
-  // Load user info and spots on mount
   useEffect(() => {
     const savedSpotId = localStorage.getItem('selectedSpotId')
     if (savedSpotId) {
@@ -55,14 +52,11 @@ export default function App() {
       .then((user) => {
         setUserRole(user.role)
       })
-      .catch(() => {
-        // Silently fail
-      })
+      .catch(() => {})
 
     listUserSpots()
       .then((data) => {
         setSpots(data)
-        // If saved spot is no longer available, reset
         if (data.length > 0 && savedSpotId) {
           const stillAvailable = data.some((s) => s.id === parseInt(savedSpotId, 10))
           if (!stillAvailable) {
@@ -71,9 +65,7 @@ export default function App() {
           }
         }
       })
-      .catch(() => {
-        // Silently fail — user may be personal role
-      })
+      .catch(() => {})
   }, [])
 
   const handleSpotChange = useCallback((e) => {
@@ -123,7 +115,6 @@ export default function App() {
 
   const handleRepeatRecipe = useCallback((r) => {
     if (userRole === 'barista') {
-      // Barista: сразу в BrewTimer, минуя форму создания
       setRecipe(r)
       setSelectedRecipeId(null)
       setActiveTab('brew')
@@ -152,18 +143,18 @@ export default function App() {
   }, [userRole])
 
   return (
-    <div className="flex flex-col h-screen bg-coffee-950 text-coffee-100 selection:bg-coffee-500/30">
+    <div className="flex flex-col h-screen bg-black text-tech-primary selection:bg-tech-accent/20">
       {/* Header */}
-      <header className="px-4 py-3 bg-coffee-900/60 backdrop-blur-md border-b border-coffee-800/40 sticky top-0 z-50">
+      <header className="px-4 py-3 bg-black/80 glass sticky top-0 z-50">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-md font-medium tracking-wide text-coffee-200 uppercase shrink-0">
+          <h1 className="text-md font-heading font-semibold tracking-wide text-tech-primary uppercase shrink-0">
             ✦ Brew Lab ✦
           </h1>
           {spots.length > 0 && (
             <select
               value={selectedSpotId ?? ''}
               onChange={handleSpotChange}
-              className="flex-1 min-w-0 max-w-[200px] text-xs bg-coffee-800/60 border border-coffee-700/50 rounded-lg px-2 py-1.5 text-coffee-200 focus:outline-none focus:border-coffee-500"
+              className="flex-1 min-w-0 max-w-[200px] text-xs bg-tech-input border-tech-border rounded-lg px-2 py-1.5 text-tech-primary focus:outline-none focus:border-tech-accent"
             >
               {userRole !== 'barista' && <option value="">Личное</option>}
               {spots.map((s) => (
@@ -239,17 +230,16 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation — Glassmorphism */}
       <div
-        className="sticky bottom-0 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-coffee-950 via-coffee-950/95 to-transparent pointer-events-none"
+        className="sticky bottom-0 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none"
         onPointerDown={(e) => {
-          // Hide keyboard on tap outside inputs
           if (e.target === e.currentTarget || e.target.tagName !== 'INPUT') {
             document.activeElement?.blur()
           }
         }}
       >
-        <nav className="flex max-w-md mx-auto bg-coffee-900/90 backdrop-blur-lg border border-coffee-800/60 rounded-2xl shadow-xl pointer-events-auto overflow-hidden">
+        <nav className="flex max-w-md mx-auto glass rounded-2xl shadow-2xl pointer-events-auto overflow-hidden">
           {getVisibleTabs(userRole).map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -259,12 +249,14 @@ export default function App() {
                 className="flex-1 flex flex-col items-center justify-center py-3 transition-all duration-300 relative group"
               >
                 {isActive && (
-                  <span className="absolute inset-x-4 top-0 h-[2px] bg-gradient-to-r from-transparent via-coffee-300 to-transparent rounded-full" />
+                  <span className="absolute inset-x-4 top-0 h-[2px] bg-tech-accent rounded-full shadow-[0_0_8px_#DEFF9A]" />
                 )}
-                <span className={`text-xl transition-transform duration-300 ${isActive ? 'scale-110' : 'opacity-60 group-hover:opacity-80'}`}>
+                <span className={`text-xl transition-all duration-300 ${isActive ? 'scale-110' : 'opacity-40 group-hover:opacity-70'}`}
+                  style={{ filter: isActive ? 'none' : 'grayscale(0.5)' }}
+                >
                   {tab.icon}
                 </span>
-                <span className={`text-[10px] mt-1 font-medium tracking-wider transition-colors duration-300 ${isActive ? 'text-coffee-200' : 'text-coffee-600'}`}>
+                <span className={`text-[10px] mt-1 font-body font-medium tracking-wider transition-colors duration-300 ${isActive ? 'text-tech-accent' : 'text-tech-secondary/50'}`}>
                   {tab.label}
                 </span>
               </button>
