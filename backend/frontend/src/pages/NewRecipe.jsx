@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react'
 
 const DRIPPERS = [
   'Hario V60',
+  'Hario Switch',
   'Kalita Wave',
   'Chemex',
   'Origami',
   'Orea',
   'NextLevel Pulsar',
-  'Hario Switch',
   'Cafec Flower Deep 27',
   'Timemore B75',
   'Sworks Dripper',
@@ -179,7 +179,6 @@ export default function NewRecipe({ onSave, initialData }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Преобразуем время шагов: "45" → 45 (сек), "1:30" → 90 (сек)
     const steps = form.pourSteps
       .filter((s) => s.time !== '')
       .map((s) => {
@@ -215,244 +214,242 @@ export default function NewRecipe({ onSave, initialData }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-xl font-bold text-coffee-cream">Новый рецепт</h2>
-
-      {/* Название рецепта */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Название рецепта</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={handleChange('name')}
-          placeholder="Например: Утренний V60"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
+    <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-6 pb-12 animate-fade-in">
+      {/* СЕКЦИЯ 1: ЗЕРНО */}
+      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+          <span>🌿</span> Профиль зерна
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Название рецепта</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={handleChange('name')}
+              placeholder="Например: Утренний V60"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Обжарщик</label>
+            <input
+              type="text"
+              value={form.roaster}
+              onChange={handleChange('roaster')}
+              placeholder="например, Subtext, Сварщица..."
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-coffee-300 font-medium mb-1 block">Сорт / Регион *</label>
+              <input
+                type="text"
+                value={form.beanVariety}
+                onChange={handleChange('beanVariety')}
+                placeholder="Ethiopia Yirgacheffe"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs text-coffee-300 font-medium mb-1 block">Обработка</label>
+              <input
+                type="text"
+                value={form.beanProcessing}
+                onChange={handleChange('beanProcessing')}
+                placeholder="Мытая / Натуральная"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Обжарщик */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Обжарщик</label>
-        <input
-          type="text"
-          value={form.roaster}
-          onChange={handleChange('roaster')}
-          placeholder="Название обжарщика"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
+      {/* СЕКЦИЯ 2: ОБОРУДОВАНИЕ И ПАРАМЕТРЫ */}
+      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+          <span>⚙️</span> Параметры экстракции
+        </h3>
 
-      {/* Сорт зерна */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Сорт зерна *</label>
-        <input
-          type="text"
-          value={form.beanVariety}
-          onChange={handleChange('beanVariety')}
-          placeholder="Ethiopia Yirgacheffe"
-          required
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
+        {/* Воронка */}
+        <div>
+          <label className="text-xs text-coffee-300 font-medium mb-2 block">Тип девайса *</label>
+          <select
+            value={form.dripperType}
+            onChange={handleChange('dripperType')}
+            className="w-full"
+          >
+            {DRIPPERS.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          {form.dripperType === 'Другая...' && (
+            <input
+              type="text"
+              value={form.dripperCustom}
+              onChange={handleChange('dripperCustom')}
+              placeholder="Введите название воронки"
+              className="w-full mt-2"
+            />
+          )}
+        </div>
 
-      {/* Обработка */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Обработка</label>
-        <input
-          type="text"
-          value={form.beanProcessing}
-          onChange={handleChange('beanProcessing')}
-          placeholder="мытая / натуральная / хани"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Кофемолка</label>
+            <select
+              value={form.grinderModel}
+              onChange={handleChange('grinderModel')}
+              className="w-full"
+            >
+              <option value="">— выберите —</option>
+              {GRINDERS.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            {form.grinderModel === 'Другая...' && (
+              <input
+                type="text"
+                value={form.grinderCustom}
+                onChange={handleChange('grinderCustom')}
+                placeholder="Введите название кофемолки"
+                className="w-full mt-2"
+              />
+            )}
+          </div>
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Помол (клики)</label>
+            <input
+              type="text"
+              value={form.grindSetting}
+              onChange={handleChange('grindSetting')}
+              placeholder="24 clicks"
+            />
+          </div>
+        </div>
 
-      {/* Доза */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Доза (г) *</label>
-        <input
-          type="number"
-          step="0.1"
-          min="1"
-          value={form.dose}
-          onChange={handleChange('dose')}
-          placeholder="15"
-          required
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Кофе (гр) *</label>
+            <input
+              type="number"
+              step="0.1"
+              min="1"
+              value={form.dose}
+              onChange={handleChange('dose')}
+              placeholder="15"
+              required
+              className="w-full text-center"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Вода (мл) *</label>
+            <input
+              type="number"
+              step="1"
+              min="1"
+              value={form.totalWater}
+              onChange={handleChange('totalWater')}
+              placeholder="250"
+              required
+              className="w-full text-center"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-coffee-300 font-medium mb-1 block">Темп. (°C)</label>
+            <input
+              type="number"
+              step="0.5"
+              value={form.waterTemp}
+              onChange={handleChange('waterTemp')}
+              placeholder="94"
+              className="w-full text-center"
+            />
+          </div>
+        </div>
 
-      {/* Воронка */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Воронка *</label>
-        <select
-          value={form.dripperType}
-          onChange={handleChange('dripperType')}
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        >
-          {DRIPPERS.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-        {form.dripperType === 'Другая...' && (
+        {/* TDS воды */}
+        <div>
+          <label className="text-xs text-coffee-300 font-medium mb-1 block">Минерализация воды (ppm)</label>
           <input
-            type="text"
-            value={form.dripperCustom}
-            onChange={handleChange('dripperCustom')}
-            placeholder="Введите название воронки"
-            className="w-full mt-2 px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
+            type="number"
+            step="1"
+            value={form.waterTds}
+            onChange={handleChange('waterTds')}
+            placeholder="50"
           />
-        )}
+        </div>
       </div>
 
-      {/* Кофемолка */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Кофемолка</label>
-        <select
-          value={form.grinderModel}
-          onChange={handleChange('grinderModel')}
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        >
-          <option value="">— выберите —</option>
-          {GRINDERS.map((g) => (
-            <option key={g} value={g}>{g}</option>
-          ))}
-        </select>
-        {form.grinderModel === 'Другая...' && (
-          <input
-            type="text"
-            value={form.grinderCustom}
-            onChange={handleChange('grinderCustom')}
-            placeholder="Введите название кофемолки"
-            className="w-full mt-2 px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-          />
-        )}
-      </div>
+      {/* СЕКЦИЯ 3: ШАГИ ВЛИВАНИЙ */}
+      <div className="bg-coffee-900/40 backdrop-blur-sm border border-coffee-800/40 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee-400 flex items-center gap-2">
+            <span>⏳</span> Схема проливов
+          </h3>
+          <button
+            type="button"
+            onClick={addStep}
+            className="text-xs font-medium text-coffee-300 hover:text-coffee-100 bg-coffee-800/60 px-2.5 py-1 rounded-lg border border-coffee-700/50 transition-all"
+          >
+            + Добавить шаг
+          </button>
+        </div>
 
-      {/* Помол */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Помол (клик / номер)</label>
-        <input
-          type="text"
-          value={form.grindSetting}
-          onChange={handleChange('grindSetting')}
-          placeholder="22 клика"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
-
-      {/* Общая вода */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Общий объём воды (мл) *</label>
-        <input
-          type="number"
-          step="1"
-          min="1"
-          value={form.totalWater}
-          onChange={handleChange('totalWater')}
-          placeholder="250"
-          required
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
-
-      {/* Температура воды */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Температура воды (°C)</label>
-        <input
-          type="number"
-          step="0.5"
-          value={form.waterTemp}
-          onChange={handleChange('waterTemp')}
-          placeholder="92"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
-
-      {/* TDS воды */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-1">Минерализация воды (ppm)</label>
-        <input
-          type="number"
-          step="1"
-          value={form.waterTds}
-          onChange={handleChange('waterTds')}
-          placeholder="50"
-          className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none"
-        />
-      </div>
-
-      {/* Шаги пролива */}
-      <div>
-        <label className="block text-sm font-medium text-coffee-latte mb-2">Шаги пролива</label>
-        {form.pourSteps.map((step, i) => (
-          <div key={i} className="mb-3 p-3 rounded-lg bg-coffee-900/50 border border-coffee-800">
-            <div className="flex gap-2 mb-2 items-end">
-              <div className="flex-1">
+        <div className="space-y-2">
+          {form.pourSteps.map((step, i) => (
+            <div key={i} className="bg-coffee-950/60 p-3 rounded-xl border border-coffee-800/30 space-y-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={step.time}
                   onChange={handleStepChange(i, 'time')}
-                  placeholder="Время: 45 или 1:30"
-                  className="w-full px-3 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                  placeholder="00:00"
+                  className="w-20 !bg-transparent !p-1 !border-0 text-sm font-mono text-coffee-300 focus:!shadow-none"
                 />
-              </div>
-              <div className="w-20">
                 <input
                   type="number"
                   value={step.volume}
                   onChange={handleStepChange(i, 'volume')}
                   placeholder="мл"
                   min="1"
-                  className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                  className="w-16 !bg-transparent !p-1 !border-0 text-sm focus:!shadow-none"
                 />
-              </div>
-              <div className="w-24">
                 <select
                   value={step.action}
                   onChange={handleStepChange(i, 'action')}
-                  className="w-full px-2 py-2 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-sm"
+                  className="flex-1 !bg-transparent !p-1 !border-0 text-sm focus:!shadow-none"
                 >
                   <option value="bloom">Блум</option>
                   <option value="pour">Вливание</option>
                 </select>
+                {form.pourSteps.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeStep(i)}
+                    className="text-coffee-700 hover:text-red-400 p-1 text-sm transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              {form.pourSteps.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeStep(i)}
-                  className="px-2 py-2 text-red-400 hover:text-red-300 text-lg"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            {/* Комментарий к шагу */}
-            <div>
+              {/* Комментарий к шагу */}
               <input
                 type="text"
                 value={step.comment}
                 onChange={handleStepChange(i, 'comment')}
                 placeholder="Комментарий к шагу (необязательно)"
-                className="w-full px-3 py-1.5 rounded-lg bg-coffee-dark text-coffee-cream border border-coffee-brown focus:border-coffee-gold focus:outline-none text-xs"
+                className="!bg-transparent !p-1 !border-0 text-xs text-coffee-400 focus:!shadow-none"
               />
             </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={addStep}
-          className="text-coffee-gold hover:text-yellow-400 text-sm"
-        >
-          + Добавить шаг
-        </button>
+          ))}
+        </div>
       </div>
 
+      {/* ГЛАВНАЯ КНОПКА ЗАПУСКА */}
       <button
         type="submit"
-        className="w-full py-3 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+        className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-lg shadow-coffee-950/50 active:scale-[0.98] transition-all tracking-wide text-md"
       >
-        Начать заваривание
+        Перейти к завариванию →
       </button>
     </form>
   )

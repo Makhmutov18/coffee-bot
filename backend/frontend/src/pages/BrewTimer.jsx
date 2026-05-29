@@ -60,66 +60,71 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
     ? `${brewTotalMinutes} мин ${brewTotalSeconds} сек`
     : `${lastStepTime} сек`
 
+  // Calculate total poured volume so far
+  const pouredVolume = steps
+    .filter((s) => s.time <= time)
+    .reduce((sum, s) => sum + (s.volume || 0), 0)
+
   return (
-    <div className="flex flex-col items-center space-y-6">
-      <h2 className="text-lg font-semibold text-coffee-200">
-        {recipe ? `${recipe.beanVariety}` : 'Заваривание'}
-      </h2>
-
-      {/* Total brew time */}
-      {steps.length > 0 && (
-        <div className="text-sm text-coffee-500">
-          Общее время заваривания: <span className="text-coffee-300 font-medium">{brewTotalStr}</span>
-        </div>
-      )}
-
-      {/* Timer Display */}
-      <div className="text-6xl font-mono font-bold text-coffee-100 tracking-wider my-4">
-        {formatTime(time)}
+    <div className="max-w-md mx-auto flex flex-col items-center justify-center space-y-8 py-4 animate-fade-in">
+      {/* Информация о зерне во время варки */}
+      <div className="text-center">
+        <span className="text-xs uppercase tracking-widest text-coffee-500 font-semibold bg-coffee-900/50 px-3 py-1 rounded-full border border-coffee-800/30">
+          {recipe?.dripperType || 'Hario V60'}
+        </span>
+        <h2 className="text-lg font-medium text-coffee-200 mt-2">
+          {recipe?.beanVariety || 'Свежий кофе'}
+        </h2>
+        {steps.length > 0 && (
+          <div className="text-xs text-coffee-500 mt-1">
+            Общее время: <span className="text-coffee-300 font-medium">{brewTotalStr}</span>
+          </div>
+        )}
       </div>
 
-      {/* Current Step Info */}
+      {/* ГИГАНТСКИЙ ТАЙМЕР */}
+      <div className="relative w-64 h-64 flex flex-col items-center justify-center rounded-full bg-gradient-to-b from-coffee-900/30 to-coffee-950 border border-coffee-800/40 shadow-2xl">
+        {running && (
+          <div className="absolute inset-0 rounded-full bg-coffee-500/5 animate-ping pointer-events-none" />
+        )}
+        <span className="text-6xl font-light tracking-tight text-coffee-100 font-mono">
+          {formatTime(time)}
+        </span>
+        <span className="text-xs uppercase tracking-widest text-coffee-400 font-medium mt-2">
+          {pouredVolume > 0 ? `Влито: ${pouredVolume} / ${recipe?.totalWater || 0} мл` : 'Ожидание...'}
+        </span>
+      </div>
+
+      {/* ТЕКУЩИЙ АКТИВНЫЙ ШАГ */}
       {currentStep && !finished && (
-        <div className="w-full bg-coffee-900 rounded-xl p-4 border border-coffee-700">
-          <div className="text-sm text-coffee-400 mb-1">Текущий шаг</div>
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-lg font-semibold text-coffee-200">
-                {currentStep.action === 'bloom' ? 'Блум' : 'Вливание'}
-              </div>
-              <div className="text-sm text-coffee-400">
-                {currentStep.volume ? `${currentStep.volume} мл` : ''}
-              </div>
-              {currentStep.comment && (
-                <div className="text-xs text-coffee-500 mt-1 italic">
-                  {currentStep.comment}
-                </div>
-              )}
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-coffee-500">Время</div>
-              <div className="text-lg font-mono text-coffee-300">
-                {formatTime(currentStep.time)}
-              </div>
-            </div>
-          </div>
+        <div className="w-full bg-gradient-to-r from-coffee-900/80 to-coffee-800/40 backdrop-blur-md border border-coffee-500/30 rounded-2xl p-6 text-center shadow-lg shadow-coffee-950/40">
+          <span className="text-[10px] uppercase tracking-widest font-bold text-coffee-400 bg-coffee-500/10 border border-coffee-500/20 px-2.5 py-0.5 rounded-md">
+            Текущий шаг
+          </span>
+          <p className="text-xl font-medium text-coffee-100 mt-3">
+            {currentStep.action === 'bloom' ? 'Блум' : 'Вливание'}
+            {currentStep.volume ? `: ${currentStep.volume} мл` : ''}
+          </p>
+          {currentStep.comment && (
+            <p className="text-xs text-coffee-400 italic mt-1">{currentStep.comment}</p>
+          )}
+          {nextStep && (
+            <p className="text-xs text-coffee-500 font-mono mt-1">
+              до {formatTime(nextStep.time)}
+            </p>
+          )}
         </div>
       )}
 
-      {/* Next Step Preview */}
+      {/* СЛЕДУЮЩИЙ ШАГ */}
       {nextStep && !finished && (
-        <div className="w-full bg-coffee-900/50 rounded-xl p-3 border border-coffee-800">
-          <div className="text-xs text-coffee-500 mb-1">Следующий</div>
-          <div className="flex justify-between text-sm">
-            <span className="text-coffee-400">
-              {nextStep.action === 'bloom' ? 'Блум' : 'Вливание'}
-              {nextStep.volume ? ` — ${nextStep.volume} мл` : ''}
-            </span>
-            <span className="text-coffee-500 font-mono">{formatTime(nextStep.time)}</span>
-          </div>
-          {nextStep.comment && (
-            <div className="text-xs text-coffee-600 mt-1 italic">{nextStep.comment}</div>
-          )}
+        <div className="w-full flex items-center justify-between px-5 py-3.5 bg-coffee-900/20 border border-coffee-800/30 rounded-xl opacity-60">
+          <span className="text-xs text-coffee-400 font-medium">Далее:</span>
+          <span className="text-sm font-medium text-coffee-200">
+            {nextStep.action === 'bloom' ? 'Блум' : 'Вливание'}
+            {nextStep.volume ? ` (${nextStep.volume} мл)` : ''}
+          </span>
+          <span className="text-xs font-mono text-coffee-400">{formatTime(nextStep.time)}</span>
         </div>
       )}
 
@@ -153,13 +158,12 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="flex gap-3 w-full">
+      {/* КНОПКИ УПРАВЛЕНИЯ */}
+      <div className="w-full space-y-3">
         {!running && !finished && (
           <button
             onClick={handleStart}
-            className="flex-1 py-4 bg-coffee-600 text-coffee-100 rounded-xl font-semibold text-lg
-              hover:bg-coffee-500 transition-colors"
+            className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-md shadow-coffee-900 transition-all active:scale-[0.98]"
           >
             ▶ Старт
           </button>
@@ -167,57 +171,53 @@ export default function BrewTimer({ recipe, onComplete, onNewRecipe }) {
         {running && (
           <button
             onClick={handlePause}
-            className="flex-1 py-4 bg-coffee-700 text-coffee-200 rounded-xl font-semibold text-lg
-              hover:bg-coffee-600 transition-colors"
+            className="w-full py-4 bg-coffee-900 hover:bg-coffee-800 border border-coffee-700/50 text-coffee-300 font-medium rounded-xl transition-all active:scale-95"
           >
             ⏸ Пауза
           </button>
         )}
         {!running && time > 0 && !finished && (
-          <>
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleStart}
-              className="flex-1 py-4 bg-coffee-600 text-coffee-100 rounded-xl font-semibold
-                hover:bg-coffee-500 transition-colors"
+              className="py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-md shadow-coffee-900 transition-all active:scale-[0.98]"
             >
               ▶ Продолжить
             </button>
             <button
               onClick={handleReset}
-              className="py-4 px-6 bg-coffee-800 text-coffee-400 rounded-xl
-                hover:bg-coffee-700 transition-colors"
+              className="py-4 bg-coffee-900 hover:bg-coffee-800 border border-coffee-700/50 text-coffee-300 font-medium rounded-xl transition-all active:scale-95"
             >
-              ↺
+              ↺ Сброс
             </button>
-          </>
+          </div>
+        )}
+
+        {/* Finish */}
+        {finished && (
+          <div className="space-y-3">
+            <div className="text-center text-coffee-300 text-lg">
+              🎉 Заваривание завершено!
+            </div>
+            <button
+              onClick={handleFinish}
+              className="w-full py-4 bg-gradient-to-r from-coffee-500 to-coffee-600 text-coffee-50 font-medium rounded-xl shadow-md shadow-coffee-900 transition-all active:scale-[0.98]"
+            >
+              Далее: ввести замеры →
+            </button>
+          </div>
+        )}
+
+        {/* New Recipe */}
+        {!running && !finished && (
+          <button
+            onClick={onNewRecipe}
+            className="w-full text-sm text-coffee-500 hover:text-coffee-400 transition-colors text-center"
+          >
+            ← Новый рецепт
+          </button>
         )}
       </div>
-
-      {/* Finish Button */}
-      {finished && (
-        <div className="w-full space-y-3">
-          <div className="text-center text-coffee-300 text-lg">
-            🎉 Заваривание завершено!
-          </div>
-          <button
-            onClick={handleFinish}
-            className="w-full py-4 bg-coffee-600 text-coffee-100 rounded-xl font-semibold text-lg
-              hover:bg-coffee-500 transition-colors"
-          >
-            Далее: ввести замеры →
-          </button>
-        </div>
-      )}
-
-      {/* New Recipe */}
-      {!running && !finished && (
-        <button
-          onClick={onNewRecipe}
-          className="text-sm text-coffee-500 hover:text-coffee-400 transition-colors"
-        >
-          ← Новый рецепт
-        </button>
-      )}
     </div>
   )
 }
