@@ -104,12 +104,8 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
       result = result.filter((r) => r.isFavorite)
     }
 
-    // Сортировка: избранные сверху
-    return [...result].sort((a, b) => {
-      if (a.isFavorite && !b.isFavorite) return -1
-      if (!a.isFavorite && b.isFavorite) return 1
-      return 0
-    })
+    // Без дополнительной сортировки — рецепты в порядке от API (по дате создания)
+    return result
   }, [recipes, searchQuery, favoriteFilter])
 
   return (
