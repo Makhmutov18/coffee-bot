@@ -187,29 +187,8 @@ export default function GrinderConverter() {
             </span>
           </div>
           <div className="text-center text-xs text-coffee-500 space-y-0.5">
-            <div className="text-coffee-400 font-medium mb-1">Распределение фракций</div>
-            <div className="grid grid-cols-4 gap-1 text-[10px]">
-              <div className="bg-coffee-900/50 rounded p-1">
-                <div className="text-coffee-600">{'>'}900µ</div>
-                <div className="text-coffee-300">{result.from_vector?.[0]?.toFixed(1)}%</div>
-                <div className="text-coffee-500">→ {result.to_vector?.[0]?.toFixed(1)}%</div>
-              </div>
-              <div className="bg-coffee-900/50 rounded p-1">
-                <div className="text-coffee-600">900–600µ</div>
-                <div className="text-coffee-300">{result.from_vector?.[1]?.toFixed(1)}%</div>
-                <div className="text-coffee-500">→ {result.to_vector?.[1]?.toFixed(1)}%</div>
-              </div>
-              <div className="bg-coffee-900/50 rounded p-1">
-                <div className="text-coffee-600">600–300µ</div>
-                <div className="text-coffee-300">{result.from_vector?.[2]?.toFixed(1)}%</div>
-                <div className="text-coffee-500">→ {result.to_vector?.[2]?.toFixed(1)}%</div>
-              </div>
-              <div className="bg-coffee-900/50 rounded p-1">
-                <div className="text-coffee-600">{'<'}300µ</div>
-                <div className="text-coffee-300">{result.from_vector?.[3]?.toFixed(1)}%</div>
-                <div className="text-coffee-500">→ {result.to_vector?.[3]?.toFixed(1)}%</div>
-              </div>
-            </div>
+            <div>Диапазон микрон: {result.micron_range}</div>
+            {result.method && <div>Метод: {result.method}</div>}
           </div>
         </div>
       )}

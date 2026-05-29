@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем весь исходный код бэкенда (включая фронтенд)
 COPY backend/ .
 
+# Копируем данные сидинга для конвертера помола
+COPY newfile/grinders_data.json newfile/grinders_data.json
+
 # Собираем фронтенд
 RUN cd frontend && npm install && node node_modules/vite/bin/vite.js build && echo "=== VITE BUILD COMPLETE ===" && ls -la dist/
 
