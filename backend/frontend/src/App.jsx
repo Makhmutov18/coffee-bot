@@ -4,7 +4,7 @@ import BrewTimer from './pages/BrewTimer'
 import Results from './pages/Results'
 import RecipeList from './pages/RecipeList'
 import RecipeDetail from './pages/RecipeDetail'
-import { listUserSpots } from './api'
+import { listUserSpots, getCurrentUser } from './api'
 
 const TABS = [
   { key: 'recipe', label: 'Рецепт', icon: '📝' },
@@ -21,6 +21,7 @@ export default function App() {
   const [repeatRecipe, setRepeatRecipe] = useState(null)
   const [spots, setSpots] = useState([])
   const [selectedSpotId, setSelectedSpotId] = useState(null)
+  const [userRole, setUserRole] = useState(null)
 
   useEffect(() => {
     if (window.Telegram?.WebApp) {
@@ -30,12 +31,20 @@ export default function App() {
     }
   }, [])
 
-  // Load user spots on mount
+  // Load user info and spots on mount
   useEffect(() => {
     const savedSpotId = localStorage.getItem('selectedSpotId')
     if (savedSpotId) {
       setSelectedSpotId(parseInt(savedSpotId, 10))
     }
+
+    getCurrentUser()
+      .then((user) => {
+        setUserRole(user.role)
+      })
+      .catch(() => {
+        // Silently fail
+      })
 
     listUserSpots()
       .then((data) => {
@@ -178,6 +187,7 @@ export default function App() {
             onSelectRecipe={handleSelectRecipe}
             onNewRecipe={handleNewRecipe}
             spotId={selectedSpotId}
+            userRole={userRole}
           />
         )}
         {activeTab === 'recipes' && selectedRecipeId && (
@@ -185,6 +195,7 @@ export default function App() {
             recipeId={selectedRecipeId}
             onBack={handleBackToList}
             onRepeat={handleRepeatRecipe}
+            userRole={userRole}
           />
         )}
       </main>

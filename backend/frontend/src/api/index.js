@@ -20,6 +20,10 @@ async function apiFetch(url, options = {}) {
   return res.json()
 }
 
+export async function getCurrentUser() {
+  return apiFetch(`${API_BASE}/api/user/me`)
+}
+
 export async function listUserSpots() {
   return apiFetch(`${API_BASE}/api/user/spots`)
 }

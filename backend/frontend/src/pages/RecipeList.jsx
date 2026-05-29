@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { listRecipes } from '../api'
 
-export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId }) {
+export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRole }) {
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -56,27 +56,33 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId }) {
     )
   }
 
+  const isReadOnly = userRole === 'barista' && spotId
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-coffee-cream">Мои рецепты</h2>
-        <button
-          onClick={onNewRecipe}
-          className="px-4 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold text-sm hover:bg-yellow-500 transition"
-        >
-          + Новый
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={onNewRecipe}
+            className="px-4 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold text-sm hover:bg-yellow-500 transition"
+          >
+            + Новый
+          </button>
+        )}
       </div>
 
       {recipes.length === 0 ? (
         <div className="text-center py-8 text-coffee-latte">
           <p>У вас пока нет сохранённых рецептов.</p>
-          <button
-            onClick={onNewRecipe}
-            className="mt-4 px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
-          >
-            Создать первый рецепт
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={onNewRecipe}
+              className="mt-4 px-6 py-2 rounded-lg bg-coffee-gold text-coffee-dark font-bold hover:bg-yellow-500 transition"
+            >
+              Создать первый рецепт
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

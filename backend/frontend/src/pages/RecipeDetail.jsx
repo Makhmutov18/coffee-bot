@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { getRecipe, deleteRecipe } from '../api'
 
-export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
+export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
   const [recipe, setRecipe] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -246,29 +246,33 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat }) {
         >
           Повторить
         </button>
-        {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="px-4 py-3 rounded-lg border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
-          >
-            Удалить
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setConfirmDelete(false)}
-              className="px-3 py-3 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition text-sm"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-3 py-3 rounded-lg bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
-            >
-              {deleting ? '...' : '✓ Удалить'}
-            </button>
-          </div>
+        {userRole !== 'barista' && (
+          <>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="px-4 py-3 rounded-lg border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
+              >
+                Удалить
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-3 rounded-lg border border-coffee-brown text-coffee-cream hover:bg-coffee-brown transition text-sm"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-3 py-3 rounded-lg bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
+                >
+                  {deleting ? '...' : '✓ Удалить'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -85,6 +85,22 @@ def _check_spot_write_permission(user, spot_id, session):
 
 
 # ──────────────────────────────────────────────
+# GET /api/user/me — информация о текущем пользователе
+# ──────────────────────────────────────────────
+
+async def handle_get_current_user(request: web.Request) -> web.Response:
+    """Вернуть информацию о текущем пользователе (роль, имя, username)."""
+    user = await get_current_user(request)
+    return web.json_response({
+        "id": user.id,
+        "telegramId": user.telegram_id,
+        "name": user.name,
+        "username": user.username,
+        "role": user.role,
+    })
+
+
+# ──────────────────────────────────────────────
 # GET /api/user/spots — список доступных точек
 # ──────────────────────────────────────────────
 
@@ -484,6 +500,7 @@ async def handle_calculate(request: web.Request) -> web.Response:
 
 def setup_api_routes(app: web.Application) -> None:
     """Подключить API-маршруты к aiohttp приложению."""
+    app.router.add_get("/api/user/me", handle_get_current_user)
     app.router.add_get("/api/user/spots", handle_list_user_spots)
     app.router.add_post("/api/spots", handle_create_spot)
     app.router.add_post("/api/spots/{id}/invite", handle_generate_invite)
@@ -494,7 +511,7 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_post("/api/calculate", handle_calculate)
     logger.info(
         "API routes registered: "
-        "GET /api/user/spots, "
+        "GET /api/user/me, GET /api/user/spots, "
         "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
         "POST /api/calculate"
