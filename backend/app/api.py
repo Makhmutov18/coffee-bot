@@ -51,6 +51,7 @@ def _serialize_recipe(r):
         "tastingNotes": r.tasting_notes,
         "lastMeasurement": last_measurement,
         "spotId": r.spot_id,
+        "isFavorite": r.is_favorite,
     }
 
 
@@ -581,6 +582,38 @@ async def handle_delete_recipe(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# PATCH /api/recipes/{recipe_id}/toggle-favorite — избранное
+# ──────────────────────────────────────────────
+
+async def handle_toggle_favorite(request: web.Request) -> web.Response:
+    """Переключить статус избранного для рецепта."""
+    user = await get_current_user(request)
+    recipe_id = request.match_info.get("recipe_id")
+
+    session = request.get("db_session")
+    try:
+        r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not r:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        # ── Проверка прав: только владелец рецепта может переключать избранное ──
+        if r.user_id != user.id:
+            return web.json_response(
+                {"error": "Вы можете отмечать избранным только свои рецепты"},
+                status=403,
+            )
+
+        r.is_favorite = not r.is_favorite
+        session.commit()
+
+        return web.json_response(_serialize_recipe(r))
+    except Exception as e:
+        session.rollback()
+        logger.error("Error toggling favorite: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ──────────────────────────────────────────────
 # POST /api/calculate — расчёт экстракции
 # ──────────────────────────────────────────────
 
@@ -809,6 +842,7 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/recipes", handle_list_recipes)
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
+    app.router.add_patch("/api/recipes/{recipe_id}/toggle-favorite", handle_toggle_favorite)
     app.router.add_post("/api/calculate", handle_calculate)
     app.router.add_post("/api/history", handle_save_brew_history)
     app.router.add_get("/api/history", handle_list_brew_history)
@@ -818,6 +852,7 @@ def setup_api_routes(app: web.Application) -> None:
         "POST /api/companies, POST /api/companies/change-role, "
         "POST /api/spots, POST /api/spots/{id}/invite, "
         "POST/GET /api/recipes, GET/DELETE /api/recipes/{id}, "
+        "PATCH /api/recipes/{recipe_id}/toggle-favorite, "
         "POST /api/calculate, "
         "POST/GET /api/history"
     )

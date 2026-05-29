@@ -104,3 +104,9 @@ export async function saveBrewHistory(data) {
 export async function listBrewHistory() {
   return apiFetch(`${API_BASE}/api/history`)
 }
+
+export async function toggleFavorite(recipeId) {
+  return apiFetch(`${API_BASE}/api/recipes/${recipeId}/toggle-favorite`, {
+    method: 'PATCH',
+  })
+}

@@ -190,6 +190,9 @@ class Recipe(Base):
     # Дегустационный профиль (JSON)
     _tasting_notes = Column("tasting_notes", String, nullable=True, comment="Дегустационный профиль в JSON")
 
+    # Избранное
+    is_favorite = Column(Boolean, default=False, nullable=False, comment="Отмечен как избранный")
+
     # Связи
     measurements = relationship("Measurement", back_populates="recipe", cascade="all, delete-orphan")
     user = relationship("User", back_populates="personal_recipes")
@@ -411,6 +414,7 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "recipes", "brew_time", "INTEGER")
     _run_migration(engine, "recipes", "user_id", "INTEGER")
     _run_migration(engine, "recipes", "spot_id", "INTEGER")
+    _run_migration(engine, "recipes", "is_favorite", "BOOLEAN DEFAULT FALSE")
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
 
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { listBrewHistory, listRecipes } from '../api'
+import { listBrewHistory, listRecipes, toggleFavorite } from '../api'
 
 const TABS = [
   { key: 'history', label: 'История', icon: '📜' },
   { key: 'library', label: 'Библиотека', icon: '📚' },
-  { key: 'stats', label: 'Статистика', icon: '📊' },
 ]
 
 function formatTime(seconds) {
@@ -72,27 +71,35 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
     }
   }
 
-  // ── Статистика ──
-  const stats = useMemo(() => {
-    const now = new Date()
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const weekBrews = history.filter((h) => new Date(h.created_at) >= weekAgo)
-    const totalWeek = weekBrews.length
-    const withinSpec = weekBrews.filter((h) => h.status === 'within_spec').length
-    const stability = totalWeek > 0 ? Math.round((withinSpec / totalWeek) * 100) : 0
-    return { totalWeek, withinSpec, stability }
-  }, [history])
+  const handleToggleFavorite = async (recipeId) => {
+    try {
+      const updated = await toggleFavorite(recipeId)
+      setRecipes((prev) =>
+        prev.map((r) => (r.id === recipeId ? { ...r, isFavorite: updated.isFavorite } : r))
+      )
+    } catch (e) {
+      console.error('Failed to toggle favorite:', e)
+    }
+  }
 
   // ── Фильтрация рецептов ──
   const filteredRecipes = useMemo(() => {
-    if (!searchQuery.trim()) return recipes
-    const q = searchQuery.toLowerCase()
-    return recipes.filter((r) => {
-      const name = (r.name || '').toLowerCase()
-      const bean = (r.beanVariety || '').toLowerCase()
-      const method = (r.dripperType || '').toLowerCase()
-      const roaster = (r.roaster || '').toLowerCase()
-      return name.includes(q) || bean.includes(q) || method.includes(q) || roaster.includes(q)
+    let result = recipes
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = recipes.filter((r) => {
+        const name = (r.name || '').toLowerCase()
+        const bean = (r.beanVariety || '').toLowerCase()
+        const method = (r.dripperType || '').toLowerCase()
+        const roaster = (r.roaster || '').toLowerCase()
+        return name.includes(q) || bean.includes(q) || method.includes(q) || roaster.includes(q)
+      })
+    }
+    // Сортировка: избранные сверху
+    return [...result].sort((a, b) => {
+      if (a.isFavorite && !b.isFavorite) return -1
+      if (!a.isFavorite && b.isFavorite) return 1
+      return 0
     })
   }, [recipes, searchQuery])
 
@@ -259,107 +266,47 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
           ) : (
             <div className="bento-grid">
               {filteredRecipes.map((r) => (
-                <button
+                <div
                   key={r.id}
-                  onClick={() => onSelectRecipe && onSelectRecipe(r)}
-                  className="w-full text-left card p-4 hover:border-tech-accent transition-all duration-200 hover:shadow-[0_0_16px_rgba(222,255,154,0.08)]"
+                  className="card p-4 hover:border-tech-accent transition-all duration-200 hover:shadow-[0_0_16px_rgba(222,255,154,0.08)] relative"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-tech-primary font-medium truncate">
-                        {r.name ? r.name : (r.roaster ? `${r.roaster} — ` : '') + r.beanVariety}
-                      </div>
-                      <div className="text-tech-secondary text-xs mt-1">
-                        {r.dripperType} · {r.dose}г · {r.totalWater}мл
-                      </div>
-                      {r.lastMeasurement && (
-                        <div className="text-tech-accent text-xs mt-1">
-                          Экстракция: {r.lastMeasurement.extraction}% · TDS: {r.lastMeasurement.tds}%
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-tech-secondary text-xs ml-2 whitespace-nowrap">
-                      {formatDate(r.createdAt)}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                  <button
+                    onClick={() => handleToggleFavorite(r.id)}
+                    className="absolute top-2 right-2 text-lg leading-none transition-transform hover:scale-110 z-10"
+                    title={r.isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+                  >
+                    {r.isFavorite ? (
+                      <span className="text-[#DEFF9A]" style={{ textShadow: '0 0 6px rgba(222,255,154,0.5)' }}>★</span>
+                    ) : (
+                      <span className="text-tech-secondary/50 hover:text-tech-secondary">☆</span>
+                    )}
+                  </button>
 
-      {/* ── Вкладка: Статистика ── */}
-      {activeTab === 'stats' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-heading font-semibold text-tech-primary">Статистика</h2>
-
-          {history.length === 0 ? (
-            <div className="text-center py-12 text-tech-secondary">
-              <div className="text-4xl mb-3">📊</div>
-              <p className="text-sm">Недостаточно данных для статистики</p>
-              <p className="text-xs mt-1 opacity-60">Начните записывать завары, чтобы увидеть аналитику</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Карточки статистики */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="card p-4 text-center">
-                  <div className="text-3xl font-light font-mono text-tech-primary">{stats.totalWeek}</div>
-                  <div className="text-xs text-tech-secondary mt-1">Заваров за неделю</div>
-                </div>
-                <div className="card p-4 text-center">
-                  <div className="text-3xl font-light font-mono text-tech-accent">{stats.stability}%</div>
-                  <div className="text-xs text-tech-secondary mt-1">Стабильность</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="card p-4 text-center">
-                  <div className="text-3xl font-light font-mono text-emerald-400">{stats.withinSpec}</div>
-                  <div className="text-xs text-tech-secondary mt-1">В рамках техкарты</div>
-                </div>
-                <div className="card p-4 text-center">
-                  <div className="text-3xl font-light font-mono text-amber-400">{history.length - stats.withinSpec}</div>
-                  <div className="text-xs text-tech-secondary mt-1">Выход за лимиты</div>
-                </div>
-              </div>
-
-              {/* Прогресс-бар стабильности */}
-              <div className="card p-4 space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-tech-secondary">Стабильность заваривания</span>
-                  <span className="text-tech-accent font-mono">{stats.stability}%</span>
-                </div>
-                <div className="h-2.5 w-full bg-black rounded-full border border-tech-border overflow-hidden">
-                  <div
-                    className="h-full bg-tech-accent rounded-full transition-all duration-500"
-                    style={{ width: `${stats.stability}%` }}
-                  />
-                </div>
-                <div className="text-[10px] text-tech-secondary/60">
-                  Всего записей в истории: {history.length}
-                </div>
-              </div>
-
-              {/* Последние завары */}
-              <div className="card p-4 space-y-2">
-                <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-tech-secondary">
-                  Последние завары
-                </h3>
-                {history.slice(0, 5).map((h) => {
-                  const st = statusLabel(h.status)
-                  return (
-                    <div key={h.id} className="flex items-center justify-between py-1.5 border-b border-tech-border last:border-0">
+                  <button
+                    onClick={() => onSelectRecipe && onSelectRecipe(r)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex justify-between items-start pr-5">
                       <div className="flex-1 min-w-0">
-                        <div className="text-tech-primary text-xs truncate">{h.coffee_beans}</div>
-                        <div className="text-tech-secondary text-[10px]">{h.brew_method} · {formatDate(h.created_at)}</div>
+                        <div className="text-tech-primary font-medium truncate">
+                          {r.name ? r.name : (r.roaster ? `${r.roaster} — ` : '') + r.beanVariety}
+                        </div>
+                        <div className="text-tech-secondary text-xs mt-1">
+                          {r.dripperType} · {r.dose}г · {r.totalWater}мл
+                        </div>
+                        {r.lastMeasurement && (
+                          <div className="text-tech-accent text-xs mt-1">
+                            Экстракция: {r.lastMeasurement.extraction}% · TDS: {r.lastMeasurement.tds}%
+                          </div>
+                        )}
                       </div>
-                      <span className={`text-[10px] font-medium ml-2 ${st.color}`}>{st.text}</span>
+                      <div className="text-tech-secondary text-xs ml-2 whitespace-nowrap">
+                        {formatDate(r.createdAt)}
+                      </div>
                     </div>
-                  )
-                })}
-              </div>
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
