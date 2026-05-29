@@ -2,6 +2,7 @@
 Хендлеры команд Telegram-бота для записи рецептов кофе.
 """
 
+import logging
 import os
 
 from aiogram import Router, F
@@ -22,6 +23,8 @@ from app.database import Recipe, Measurement, User, UserRole, Spot, Company, use
 
 # URL Mini App (берётся из переменной окружения или Railway URL по умолчанию)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app")
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 session = init_db()
@@ -90,13 +93,13 @@ async def cmd_start(message: Message) -> None:
     username = message.from_user.username
 
     # ── Deep linking: проверяем аргументы команды ──
-    args = message.get_args()
-    if args:
-        # Ожидаем формат: join_spot_<token>
-        if args.startswith("join_spot_"):
-            token = args[len("join_spot_"):]
-            await _handle_join_spot(message, telegram_id, name, username, token)
-            return
+    args = message.get_args() or ""
+    logger.info("ARGS RECEIVED: telegram_id=%s, args='%s'", telegram_id, args)
+    if args and "join_spot_" in args:
+        token = args.replace("join_spot_", "")
+        logger.info("JOIN SPOT TOKEN EXTRACTED: token='%s'", token)
+        await _handle_join_spot(message, telegram_id, name, username, token)
+        return
 
     # ── Стандартный /start (регистрация + приветствие) ──
     session = init_db()
@@ -243,7 +246,7 @@ async def _handle_join_spot(
 
     except Exception as e:
         session.rollback()
-        logger.error("Error processing invite: %s", e)
+        logger.exception("Error processing invite for token=%s: %s", token, e)
         await message.answer(
             "❌ <b>Ошибка при обработке приглашения</b>\n\n"
             "Пожалуйста, попробуйте ещё раз или обратитесь к владельцу сети.",
