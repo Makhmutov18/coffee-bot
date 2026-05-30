@@ -31,6 +31,7 @@ export default function TmaApp() {
   const [brewResults, setBrewResults] = useState(null)
   const [selectedRecipeId, setSelectedRecipeId] = useState(null)
   const [repeatRecipe, setRepeatRecipe] = useState(null)
+  const [editRecipe, setEditRecipe] = useState(null)
   const [spots, setSpots] = useState([])
   const [selectedSpotId, setSelectedSpotId] = useState(null)
   const [userRole, setUserRole] = useState(null)
@@ -98,8 +99,42 @@ export default function TmaApp() {
     setRecipe(null)
     setBrewResults(null)
     setRepeatRecipe(null)
+    setEditRecipe(null)
     setSelectedRecipeId(null)
     setActiveTab('recipe')
+  }, [])
+
+  const handleEditRecipe = useCallback((r) => {
+    const prefill = {
+      id: r.id,
+      name: r.name || '',
+      roaster: r.roaster || '',
+      beanVariety: r.beanVariety,
+      beanProcessing: r.beanProcessing || '',
+      dose: r.dose,
+      dripperType: r.dripperType,
+      grinderModel: r.grinderModel || '',
+      grindSetting: r.grindSetting || '',
+      totalWater: r.totalWater,
+      waterTemp: r.waterTemp || '',
+      waterTds: r.waterTds || '',
+      brewTime: r.brewTime || '',
+      pourSteps: (r.pourSteps || []).map((s) => ({
+        time: s.time,
+        volume: s.volume,
+        action: s.action,
+        comment: s.comment || '',
+      })),
+    }
+    setEditRecipe(prefill)
+    setSelectedRecipeId(null)
+    setActiveTab('recipe')
+  }, [])
+
+  const handleUpdateRecipe = useCallback(async (data) => {
+    setRecipe(data)
+    setEditRecipe(null)
+    setActiveTab('brew')
   }, [])
 
   const handleGoToRecipes = useCallback(() => {
@@ -172,9 +207,10 @@ export default function TmaApp() {
       <main className="flex-1 overflow-y-auto px-4 py-6">
         {activeTab === 'recipe' && userRole !== 'barista' && (
           <NewRecipe
-            key={repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
+            key={editRecipe ? `edit-${editRecipe.id}` : repeatRecipe ? JSON.stringify(repeatRecipe) : 'new'}
             onSave={handleRecipeSave}
-            initialData={repeatRecipe}
+            onUpdate={handleUpdateRecipe}
+            initialData={editRecipe || repeatRecipe}
             spotId={selectedSpotId}
           />
         )}
@@ -191,6 +227,7 @@ export default function TmaApp() {
             recipeId={selectedRecipeId}
             onBack={handleBackToList}
             onRepeat={handleRepeatRecipe}
+            onEdit={handleEditRecipe}
             userRole={userRole}
           />
         )}
@@ -223,6 +260,7 @@ export default function TmaApp() {
             recipeId={selectedRecipeId}
             onBack={handleBackToList}
             onRepeat={handleRepeatRecipe}
+            onEdit={handleEditRecipe}
             userRole={userRole}
           />
         )}

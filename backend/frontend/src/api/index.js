@@ -110,3 +110,27 @@ export async function toggleFavorite(recipeId) {
     method: 'PATCH',
   })
 }
+
+export async function updateRecipe(id, recipeData) {
+  return apiFetch(`${API_BASE}/api/recipes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recipeData),
+  })
+}
+
+export async function copyRecipe(id, spotId) {
+  return apiFetch(`${API_BASE}/api/recipes/${id}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spotId: spotId || null }),
+  })
+}
+
+export async function moveRecipe(id, targetSpotId) {
+  return apiFetch(`${API_BASE}/api/recipes/${id}/move`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spotId: targetSpotId }),
+  })
+}

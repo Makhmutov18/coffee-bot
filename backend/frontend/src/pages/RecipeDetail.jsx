@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react'
-import { getRecipe, deleteRecipe } from '../api'
+import { getRecipe, deleteRecipe, copyRecipe, moveRecipe, listUserSpots } from '../api'
 
-export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
+export default function RecipeDetail({ recipeId, onBack, onRepeat, onEdit, userRole }) {
   const [recipe, setRecipe] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showMoveModal, setShowMoveModal] = useState(false)
+  const [spots, setSpots] = useState([])
+  const [selectedMoveSpotId, setSelectedMoveSpotId] = useState('')
+  const [moving, setMoving] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const [copyDone, setCopyDone] = useState(false)
 
   useEffect(() => {
     loadRecipe()
@@ -24,6 +30,14 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (showMoveModal) {
+      listUserSpots()
+        .then((data) => setSpots(data))
+        .catch(() => {})
+    }
+  }, [showMoveModal])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -234,42 +248,123 @@ export default function RecipeDetail({ recipeId, onBack, onRepeat, userRole }) {
         </div>
       )}
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => onRepeat(recipe)}
-          className="flex-1 py-3 rounded-xl bg-tech-accent text-black font-bold hover:brightness-110 transition"
-        >
-          Повторить
-        </button>
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3">
+          <button
+            onClick={() => onRepeat(recipe)}
+            className="flex-1 py-3 rounded-xl bg-tech-accent text-black font-bold hover:brightness-110 transition"
+          >
+            Повторить
+          </button>
+          {userRole !== 'barista' && (
+            <button
+              onClick={() => onEdit(recipe)}
+              className="px-4 py-3 rounded-xl border border-tech-border text-tech-primary hover:border-tech-accent transition text-sm"
+            >
+              ✏️ Редактировать
+            </button>
+          )}
+        </div>
+
         {userRole !== 'barista' && (
-          <>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                setCopying(true)
+                try {
+                  await copyRecipe(recipe.id, recipe.spotId)
+                  setCopyDone(true)
+                  setTimeout(() => setCopyDone(false), 2000)
+                } catch (e) {
+                  setError(e.message)
+                } finally {
+                  setCopying(false)
+                }
+              }}
+              disabled={copying}
+              className="flex-1 py-2.5 rounded-xl border border-tech-border text-tech-primary hover:border-tech-accent transition text-sm disabled:opacity-50"
+            >
+              {copying ? '...' : copyDone ? '✅ Скопировано' : '📋 Копировать'}
+            </button>
+            <button
+              onClick={() => setShowMoveModal(true)}
+              className="flex-1 py-2.5 rounded-xl border border-tech-border text-tech-primary hover:border-tech-accent transition text-sm"
+            >
+              📦 Переместить
+            </button>
             {!confirmDelete ? (
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="px-4 py-3 rounded-xl border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
+                className="px-4 py-2.5 rounded-xl border border-red-700 text-red-400 hover:bg-red-900/30 transition text-sm"
               >
-                Удалить
+                🗑
               </button>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="px-3 py-3 rounded-xl border border-tech-border text-tech-primary hover:brightness-125 transition text-sm"
+                  className="px-2 py-2.5 rounded-xl border border-tech-border text-tech-primary hover:brightness-125 transition text-sm"
                 >
-                  Отмена
+                  ✕
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-3 py-3 rounded-xl bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
+                  className="px-2 py-2.5 rounded-xl bg-red-700 text-white font-bold hover:bg-red-600 transition text-sm disabled:opacity-50"
                 >
-                  {deleting ? '...' : '✓ Удалить'}
+                  {deleting ? '...' : '✓'}
                 </button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
+
+      {/* Move Modal */}
+      {showMoveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="card p-6 w-full max-w-sm space-y-4 animate-fade-in">
+            <h3 className="text-sm font-heading font-semibold text-tech-primary">Переместить рецепт</h3>
+            <select
+              value={selectedMoveSpotId}
+              onChange={(e) => setSelectedMoveSpotId(e.target.value)}
+              className="w-full"
+            >
+              <option value="">— выберите точку —</option>
+              {spots.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowMoveModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-tech-border text-tech-primary transition text-sm"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedMoveSpotId) return
+                  setMoving(true)
+                  try {
+                    await moveRecipe(recipe.id, parseInt(selectedMoveSpotId, 10))
+                    setShowMoveModal(false)
+                    onBack()
+                  } catch (e) {
+                    setError(e.message)
+                  } finally {
+                    setMoving(false)
+                  }
+                }}
+                disabled={moving || !selectedMoveSpotId}
+                className="flex-1 py-2.5 rounded-xl bg-tech-accent text-black font-bold transition text-sm disabled:opacity-50"
+              >
+                {moving ? '...' : 'Переместить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

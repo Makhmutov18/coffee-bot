@@ -541,6 +541,182 @@ async def handle_get_recipe(request: web.Request) -> web.Response:
 
 
 # ──────────────────────────────────────────────
+# PUT /api/recipes/{id} — обновить рецепт
+# ──────────────────────────────────────────────
+
+async def handle_update_recipe(request: web.Request) -> web.Response:
+    """Обновить существующий рецепт."""
+    user = await get_current_user(request)
+    recipe_id = request.match_info.get("id")
+
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    session = request.get("db_session")
+    try:
+        r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not r:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        # ── Проверка прав ──
+        if r.spot_id:
+            if not _check_spot_write_permission(user, r.spot_id, session):
+                return web.json_response(
+                    {"error": "У вас нет прав на редактирование рецептов этой точки"},
+                    status=403,
+                )
+        else:
+            if r.user_id != user.id:
+                return web.json_response(
+                    {"error": "Вы не можете редактировать чужой рецепт"},
+                    status=403,
+                )
+
+        # ── Обновляем поля ──
+        if "name" in data:
+            r.name = data.get("name")
+        if "roaster" in data:
+            r.roaster = data.get("roaster")
+        if "beanVariety" in data:
+            r.bean_variety = data["beanVariety"]
+        if "beanProcessing" in data:
+            r.bean_processing = data.get("beanProcessing")
+        if "dose" in data:
+            r.dose = float(data["dose"])
+        if "dripperType" in data:
+            r.dripper_type = data["dripperType"]
+        if "grinderModel" in data:
+            r.grinder_model = data.get("grinderModel")
+        if "grindSetting" in data:
+            r.grind_setting = data.get("grindSetting")
+        if "totalWater" in data:
+            r.total_water = float(data["totalWater"])
+        if "waterTemp" in data:
+            r.water_temp = float(data["waterTemp"]) if data.get("waterTemp") else None
+        if "waterTds" in data:
+            r.water_tds = float(data["waterTds"]) if data.get("waterTds") else None
+        if "brewTime" in data:
+            r.brew_time = data.get("brewTime")
+        if "pourSteps" in data:
+            r.pour_steps = data["pourSteps"]
+
+        session.commit()
+
+        return web.json_response(_serialize_recipe(r))
+    except Exception as e:
+        session.rollback()
+        logger.error("Error updating recipe: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ──────────────────────────────────────────────
+# POST /api/recipes/{id}/copy — копировать рецепт
+# ──────────────────────────────────────────────
+
+async def handle_copy_recipe(request: web.Request) -> web.Response:
+    """Создать копию рецепта для текущего пользователя."""
+    user = await get_current_user(request)
+    recipe_id = request.match_info.get("id")
+
+    session = request.get("db_session")
+    try:
+        original = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not original:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        # Определяем spot_id для копии
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        target_spot_id = body.get("spotId") if body else None
+
+        copy = Recipe(
+            user_id=user.id,
+            spot_id=target_spot_id,
+            name=(original.name or "") + " (копия)",
+            roaster=original.roaster,
+            bean_variety=original.bean_variety,
+            bean_processing=original.bean_processing,
+            dose=original.dose,
+            dripper_type=original.dripper_type,
+            grinder_model=original.grinder_model,
+            grind_setting=original.grind_setting,
+            total_water=original.total_water,
+            water_temp=original.water_temp,
+            water_tds=original.water_tds,
+            brew_time=original.brew_time,
+            pour_steps=original.pour_steps,
+        )
+        session.add(copy)
+        session.commit()
+
+        return web.json_response(_serialize_recipe(copy), status=201)
+    except Exception as e:
+        session.rollback()
+        logger.error("Error copying recipe: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ──────────────────────────────────────────────
+# PATCH /api/recipes/{id}/move — переместить между спотами
+# ──────────────────────────────────────────────
+
+async def handle_move_recipe(request: web.Request) -> web.Response:
+    """Переместить рецепт в другой спот."""
+    user = await get_current_user(request)
+    recipe_id = request.match_info.get("id")
+
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    target_spot_id = data.get("spotId")
+    if target_spot_id is None:
+        return web.json_response({"error": "spotId обязателен"}, status=400)
+
+    session = request.get("db_session")
+    try:
+        r = session.query(Recipe).filter(Recipe.id == int(recipe_id)).first()
+        if not r:
+            return web.json_response({"error": "Рецепт не найден"}, status=404)
+
+        # Проверяем права на исходный спот (или личный рецепт)
+        if r.spot_id:
+            if not _check_spot_write_permission(user, r.spot_id, session):
+                return web.json_response(
+                    {"error": "У вас нет прав на перемещение рецептов этой точки"},
+                    status=403,
+                )
+        else:
+            if r.user_id != user.id:
+                return web.json_response(
+                    {"error": "Вы не можете перемещать чужой рецепт"},
+                    status=403,
+                )
+
+        # Проверяем права на целевой спот
+        if not _check_spot_write_permission(user, int(target_spot_id), session):
+            return web.json_response(
+                {"error": "У вас нет прав на добавление рецептов в эту точку"},
+                status=403,
+            )
+
+        r.spot_id = int(target_spot_id)
+        session.commit()
+
+        return web.json_response(_serialize_recipe(r))
+    except Exception as e:
+        session.rollback()
+        logger.error("Error moving recipe: %s", e)
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ──────────────────────────────────────────────
 # DELETE /api/recipes/{id} — удалить рецепт
 # ──────────────────────────────────────────────
 
@@ -841,7 +1017,10 @@ def setup_api_routes(app: web.Application) -> None:
     app.router.add_post("/api/recipes", handle_save_recipe)
     app.router.add_get("/api/recipes", handle_list_recipes)
     app.router.add_get("/api/recipes/{id}", handle_get_recipe)
+    app.router.add_put("/api/recipes/{id}", handle_update_recipe)
     app.router.add_delete("/api/recipes/{id}", handle_delete_recipe)
+    app.router.add_post("/api/recipes/{id}/copy", handle_copy_recipe)
+    app.router.add_patch("/api/recipes/{id}/move", handle_move_recipe)
     app.router.add_patch("/api/recipes/{recipe_id}/toggle-favorite", handle_toggle_favorite)
     app.router.add_post("/api/calculate", handle_calculate)
     app.router.add_post("/api/history", handle_save_brew_history)

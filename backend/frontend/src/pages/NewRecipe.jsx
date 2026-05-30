@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { saveRecipe } from '../api'
+import { saveRecipe, updateRecipe } from '../api'
 
 const DRIPPERS = [
   'Batch Brew',
@@ -111,18 +111,19 @@ const INITIAL_FORM = {
   pourSteps: [{ time: '', volume: '', action: 'bloom', comment: '' }],
 }
 
-export default function NewRecipe({ onSave, initialData, spotId }) {
+export default function NewRecipe({ onSave, initialData, spotId, onUpdate }) {
   const [form, setForm] = useState(INITIAL_FORM)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
+  const isEditing = !!initialData?.id
   const isBatchBrew = form.dripperType === 'Batch Brew'
 
   const batchCalc = useMemo(() => {
     if (!isBatchBrew) return null
-    const vol = parseFloat(form.batchVolume)
-    const ratio = parseFloat(form.brewRatio)
+    const vol = parseFloat((form.batchVolume || '').replace(',', '.'))
+    const ratio = parseFloat((form.brewRatio || '').replace(',', '.'))
     if (!vol || vol <= 0 || !ratio || ratio <= 0) return null
     const coffeeWeight = +(vol / ratio).toFixed(1)
     const waterInTank = Math.round(vol + coffeeWeight * 2)
@@ -224,8 +225,8 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
   }
 
   const buildRecipeData = (steps) => {
-    let dose = parseFloat(form.dose)
-    let totalWater = parseFloat(form.totalWater)
+    let dose = parseFloat((form.dose || '').replace(',', '.'))
+    let totalWater = parseFloat((form.totalWater || '').replace(',', '.'))
 
     if (isBatchBrew && batchCalc) {
       dose = batchCalc.coffeeWeight
@@ -266,7 +267,11 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
     setSaving(true)
     setSaveError(null)
     try {
-      await saveRecipe(recipeData)
+      if (isEditing && initialData?.id) {
+        await updateRecipe(initialData.id, recipeData)
+      } else {
+        await saveRecipe(recipeData)
+      }
       setSaved(true)
     } catch (e) {
       setSaveError(e.message)
@@ -279,7 +284,11 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
     e.preventDefault()
     const steps = buildSteps()
     const recipeData = buildRecipeData(steps)
-    onSave(recipeData)
+    if (isEditing && onUpdate) {
+      onUpdate(recipeData)
+    } else {
+      onSave(recipeData)
+    }
   }
 
   const handleNewAgain = () => {
@@ -400,55 +409,55 @@ export default function NewRecipe({ onSave, initialData, spotId }) {
           </div>
         </div>
 
+        {/* Brew Ratio — для всех дрипперов */}
+        <div>
+          <label className="text-xs text-tech-primary font-medium mb-1 block">
+            Коэффициент заваривания (Brew Ratio)
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            pattern="\d*\.?\d*"
+            value={form.brewRatio}
+            onChange={handleChange('brewRatio')}
+            placeholder="16.5"
+            className="w-full text-center"
+          />
+        </div>
+
         {isBatchBrew ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-tech-primary font-medium mb-1 block">
-                  Желаемый объём готового кофе (мл) *
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="\d*\.?\d*"
-                  value={form.batchVolume}
-                  onChange={handleChange('batchVolume')}
-                  placeholder="1000"
-                  required
-                  className="w-full text-center"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-tech-primary font-medium mb-1 block">
-                  Коэффициент (Brew Ratio)
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="\d*\.?\d*"
-                  value={form.brewRatio}
-                  onChange={handleChange('brewRatio')}
-                  placeholder="16.5"
-                  className="w-full text-center"
-                />
-              </div>
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">
+                Желаемый объём готового кофе (мл) *
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.batchVolume}
+                onChange={handleChange('batchVolume')}
+                placeholder="1000"
+                required
+                className="w-full text-center"
+              />
             </div>
 
             {batchCalc && (
-              <div className="bento-grid grid-cols-2 gap-3">
-                <div className="bento-item p-4 text-center">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="card p-4 text-center">
                   <div className="text-2xl font-bold text-tech-accent font-mono">{batchCalc.coffeeWeight}</div>
                   <div className="text-xs text-tech-secondary mt-1">Вес кофе (г)</div>
                 </div>
-                <div className="bento-item p-4 text-center">
+                <div className="card p-4 text-center">
                   <div className="text-2xl font-bold text-tech-accent font-mono">{batchCalc.waterInTank}</div>
                   <div className="text-xs text-tech-secondary mt-1">Вода в бак (мл)</div>
                 </div>
-                <div className="bento-item p-4 text-center">
+                <div className="card p-4 text-center">
                   <div className="text-lg font-bold text-tech-primary font-mono">1 : {batchCalc.brewRatio}</div>
                   <div className="text-xs text-tech-secondary mt-1">Brew Ratio</div>
                 </div>
-                <div className="bento-item p-4 text-center">
+                <div className="card p-4 text-center">
                   <div className="text-lg font-bold text-tech-primary font-mono">{batchCalc.batchVolume} мл</div>
                   <div className="text-xs text-tech-secondary mt-1">На выходе</div>
                 </div>
