@@ -5,7 +5,7 @@
 import logging
 import os
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
     Message,
@@ -20,6 +20,9 @@ from app.database import User, UserRole, Spot, Company, user_spots, init_db
 # ВАЖНО: суффикс /app обязателен — на корне теперь лендинг
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://web-production-66155.up.railway.app") + "/app"
 
+# Секретный код для доступа в бета-версию
+BETA_CODE = os.getenv("BETA_CODE", "brewlab2024")
+
 logger = logging.getLogger(__name__)
 
 router = Router()
@@ -27,14 +30,40 @@ session = init_db()
 
 
 # ──────────────────────────────────────────────
+# Beta gate: проверка доступа
+# ──────────────────────────────────────────────
+
+
+async def _is_beta_authorized(telegram_id: str) -> bool:
+    """Проверить, есть ли у пользователя доступ к боту (is_beta_tester)."""
+    s = init_db()
+    try:
+        user = s.query(User).filter(User.telegram_id == telegram_id).first()
+        return bool(user and user.is_beta_tester)
+    except Exception:
+        return False
+    finally:
+        s.close()
+
+
+# ──────────────────────────────────────────────
 # Команда /start
 # ──────────────────────────────────────────────
+
 
 @router.message(Command("start"))
 async def cmd_start(message: Message, command: CommandObject) -> None:
     telegram_id = str(message.from_user.id)
     name = message.from_user.first_name
     username = message.from_user.username
+
+    # ── Beta gate: проверяем доступ ──
+    if not await _is_beta_authorized(telegram_id):
+        await message.answer(
+            "🔒 <b>Доступ ограничен</b>\n\n"
+            "Пожалуйста, введите секретный код доступа, чтобы присоединиться к тесту.",
+        )
+        return
 
     # ── Deep linking: проверяем аргументы команды ──
     args = command.args or ""
@@ -55,6 +84,7 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
                 name=name,
                 username=username,
                 role=UserRole.personal.value,
+                is_beta_tester=True,
             )
             s.add(user)
             s.commit()
@@ -83,6 +113,61 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
         "параметров и стабильность каждой чашки.",
         reply_markup=webapp_kb,
     )
+
+
+# ──────────────────────────────────────────────
+# Обработчик ввода бета-кода
+# ──────────────────────────────────────────────
+
+
+@router.message(F.text)
+async def handle_beta_code(message: Message) -> None:
+    """Проверить, не вводит ли пользователь секретный код доступа."""
+    telegram_id = str(message.from_user.id)
+    text = message.text.strip()
+
+    # Пропускаем команды (они обрабатываются своими хендлерами)
+    if text.startswith("/"):
+        return
+
+    # Если пользователь уже авторизован — игнорируем
+    if await _is_beta_authorized(telegram_id):
+        return
+
+    # Проверяем код
+    if text == BETA_CODE:
+        s = init_db()
+        try:
+            user = s.query(User).filter(User.telegram_id == telegram_id).first()
+            if not user:
+                user = User(
+                    telegram_id=telegram_id,
+                    name=message.from_user.first_name,
+                    username=message.from_user.username,
+                    role=UserRole.personal.value,
+                    is_beta_tester=True,
+                )
+                s.add(user)
+            else:
+                user.is_beta_tester = True
+            s.commit()
+            logger.info("Beta access granted: telegram_id=%s", telegram_id)
+        except Exception as e:
+            s.rollback()
+            logger.error("Error granting beta access: %s", e)
+            await message.answer(
+                "❌ <b>Ошибка при активации доступа</b>. Попробуйте ещё раз.",
+            )
+            return
+        finally:
+            s.close()
+
+        await message.answer(
+            "✅ <b>Доступ разрешен!</b>\n\n"
+            "Нажмите /start для запуска.",
+        )
+    else:
+        await message.answer("Неверный код.")
 
 
 async def _handle_join_spot(
@@ -217,6 +302,7 @@ async def _handle_join_spot(
 # Команда /help
 # ──────────────────────────────────────────────
 
+
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(
@@ -245,6 +331,7 @@ async def cmd_help(message: Message) -> None:
 # Команда /app — открыть Mini App
 # ──────────────────────────────────────────────
 
+
 @router.message(Command("app"))
 async def cmd_app(message: Message) -> None:
     """Открыть Telegram Mini App."""
@@ -269,6 +356,7 @@ async def cmd_app(message: Message) -> None:
 # ──────────────────────────────────────────────
 # Команда /set_role — смена роли (отладка)
 # ──────────────────────────────────────────────
+
 
 @router.message(Command("set_role"))
 async def cmd_set_role(message: Message, command: CommandObject) -> None:

@@ -78,6 +78,7 @@ class User(Base):
     name = Column(String, nullable=True)
     username = Column(String, nullable=True)
     role = Column(String, default=UserRole.personal.value, nullable=False)
+    is_beta_tester = Column(Boolean, default=False)
 
     # Если юзер — владелец, у него есть компания
     company = relationship("Company", back_populates="owner", uselist=False)
@@ -421,6 +422,7 @@ def _migrate_existing_tables(engine) -> None:
     _run_migration(engine, "recipes", "is_favorite", "BOOLEAN DEFAULT FALSE")
     _run_migration(engine, "recipes", "method", "VARCHAR(16)")
     _run_migration(engine, "spots", "invite_token", "VARCHAR")
+    _run_migration(engine, "users", "is_beta_tester", "BOOLEAN DEFAULT FALSE")
 
 
 def init_database() -> None:
