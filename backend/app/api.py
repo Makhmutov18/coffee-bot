@@ -52,6 +52,7 @@ def _serialize_recipe(r):
         "lastMeasurement": last_measurement,
         "spotId": r.spot_id,
         "isFavorite": r.is_favorite,
+        "method": r.method,
     }
 
 
@@ -370,6 +371,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
                 pour_steps=data.get("pourSteps", []),
                 tasting_notes=data.get("tastingNotes"),
                 brew_time=data.get("brewTime"),
+                method=data.get("method"),
             )
         else:
             # ── Коммерческий рецепт — проверяем права на запись ──
@@ -396,6 +398,7 @@ async def handle_save_recipe(request: web.Request) -> web.Response:
                 pour_steps=data.get("pourSteps", []),
                 tasting_notes=data.get("tastingNotes"),
                 brew_time=data.get("brewTime"),
+                method=data.get("method"),
             )
 
         session.add(recipe)
@@ -601,6 +604,8 @@ async def handle_update_recipe(request: web.Request) -> web.Response:
             r.brew_time = data.get("brewTime")
         if "pourSteps" in data:
             r.pour_steps = data["pourSteps"]
+        if "method" in data:
+            r.method = data.get("method")
 
         session.commit()
 
