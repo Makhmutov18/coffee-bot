@@ -130,6 +130,14 @@ export default function NewRecipe({ onSave, initialData, spotId, onUpdate }) {
     return { coffeeWeight, waterInTank, batchVolume: vol, brewRatio: ratio }
   }, [form.batchVolume, form.brewRatio, isBatchBrew])
 
+  const computedRatio = useMemo(() => {
+    if (isBatchBrew) return null
+    const dose = parseFloat((form.dose || '').replace(',', '.'))
+    const water = parseFloat((form.totalWater || '').replace(',', '.'))
+    if (!dose || dose <= 0 || !water || water <= 0) return null
+    return +(water / dose).toFixed(1)
+  }, [form.dose, form.totalWater, isBatchBrew])
+
   useEffect(() => {
     if (initialData) {
       const dripperIsCustom = initialData.dripperType && !DRIPPERS.slice(0, -1).includes(initialData.dripperType)
@@ -409,24 +417,22 @@ export default function NewRecipe({ onSave, initialData, spotId, onUpdate }) {
           </div>
         </div>
 
-        {/* Brew Ratio — для всех дрипперов */}
-        <div>
-          <label className="text-xs text-tech-primary font-medium mb-1 block">
-            Коэффициент заваривания (Brew Ratio)
-          </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            pattern="\d*\.?\d*"
-            value={form.brewRatio}
-            onChange={handleChange('brewRatio')}
-            placeholder="16.5"
-            className="w-full text-center"
-          />
-        </div>
-
         {isBatchBrew ? (
           <div className="space-y-4">
+            <div>
+              <label className="text-xs text-tech-primary font-medium mb-1 block">
+                Коэффициент заваривания (Brew Ratio)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="\d*\.?\d*"
+                value={form.brewRatio}
+                onChange={handleChange('brewRatio')}
+                placeholder="16.5"
+                className="w-full text-center"
+              />
+            </div>
             <div>
               <label className="text-xs text-tech-primary font-medium mb-1 block">
                 Желаемый объём готового кофе (мл) *
@@ -478,7 +484,7 @@ export default function NewRecipe({ onSave, initialData, spotId, onUpdate }) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-tech-primary font-medium mb-1 block">Кофе (гр) *</label>
               <input
@@ -517,6 +523,12 @@ export default function NewRecipe({ onSave, initialData, spotId, onUpdate }) {
                 className="w-full text-center"
               />
             </div>
+            {computedRatio && (
+              <div className="card p-3 text-center flex flex-col items-center justify-center">
+                <div className="text-lg font-bold text-tech-accent font-mono">1 : {computedRatio}</div>
+                <div className="text-xs text-tech-secondary mt-0.5">Brew Ratio</div>
+              </div>
+            )}
           </div>
         )}
 
