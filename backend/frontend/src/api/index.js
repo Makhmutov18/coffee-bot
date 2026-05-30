@@ -36,9 +36,12 @@ export async function saveRecipe(recipeData) {
   })
 }
 
-export async function listRecipes(spotId) {
-  const params = spotId ? `?spotId=${spotId}` : ''
-  return apiFetch(`${API_BASE}/api/recipes${params}`)
+export async function listRecipes(spotId, method) {
+  const params = new URLSearchParams()
+  if (spotId) params.set('spotId', spotId)
+  if (method) params.set('method', method)
+  const qs = params.toString()
+  return apiFetch(`${API_BASE}/api/recipes${qs ? `?${qs}` : ''}`)
 }
 
 export async function getRecipe(id) {

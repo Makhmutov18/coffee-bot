@@ -35,6 +35,7 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
   const [recipes, setRecipes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteFilter, setFavoriteFilter] = useState('all') // 'all' | 'favorites'
+  const [methodFilter, setMethodFilter] = useState(null)
   const [loading, setLoading] = useState({ history: true, library: true })
   const [error, setError] = useState(null)
 
@@ -63,7 +64,7 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
     setLoading((prev) => ({ ...prev, library: true }))
     setError(null)
     try {
-      const data = await listRecipes(spotId)
+      const data = await listRecipes(spotId, methodFilter)
       setRecipes(data)
     } catch (e) {
       setError(e.message)
@@ -71,6 +72,10 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
       setLoading((prev) => ({ ...prev, library: false }))
     }
   }
+
+  useEffect(() => {
+    loadRecipes()
+  }, [methodFilter])
 
   const handleToggleFavorite = async (recipeId) => {
     try {
@@ -243,6 +248,50 @@ export default function Archive({ spotId, onSelectRecipe, onNewRecipe, userRole 
                 ✕
               </button>
             )}
+          </div>
+
+          {/* Фильтр: по методу */}
+          <div className="flex gap-1.5 bg-tech-surface rounded-xl border border-tech-border p-1">
+            <button
+              onClick={() => setMethodFilter(null)}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                methodFilter === null
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              Все
+            </button>
+            <button
+              onClick={() => setMethodFilter('pourover')}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                methodFilter === 'pourover'
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              🌪 Пуровер
+            </button>
+            <button
+              onClick={() => setMethodFilter('batch')}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                methodFilter === 'batch'
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              🤖 Батч
+            </button>
+            <button
+              onClick={() => setMethodFilter('espresso')}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                methodFilter === 'espresso'
+                  ? 'bg-tech-accent text-black shadow-md'
+                  : 'text-tech-secondary hover:text-tech-primary'
+              }`}
+            >
+              ☕️ Эспрессо
+            </button>
           </div>
 
           {/* Фильтр: Все / Избранное */}

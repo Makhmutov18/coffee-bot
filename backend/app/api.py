@@ -439,6 +439,7 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
     """Получить список рецептов (личных или по споту)."""
     user = await get_current_user(request)
     spot_id = request.query.get("spotId")
+    method = request.query.get("method")
 
     session = request.get("db_session")
     try:
@@ -487,6 +488,10 @@ async def handle_list_recipes(request: web.Request) -> web.Response:
         # ── Personal: только личные рецепты ──
         else:
             query = query.filter(Recipe.user_id == user.id)
+
+        # ── Фильтр по методу заваривания ──
+        if method and method in ("pourover", "batch", "espresso"):
+            query = query.filter(Recipe.method == method)
 
         recipes = query.order_by(Recipe.created_at.desc()).all()
         result = [_serialize_recipe(r) for r in recipes]

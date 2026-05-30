@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { listRecipes } from '../api'
 
+const METHOD_FILTERS = [
+  { key: null, label: 'Все' },
+  { key: 'pourover', label: '🌪 Пуровер' },
+  { key: 'batch', label: '🤖 Батч' },
+  { key: 'espresso', label: '☕️ Эспрессо' },
+]
+
 export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRole }) {
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [methodFilter, setMethodFilter] = useState(null)
 
   useEffect(() => {
     loadRecipes()
@@ -14,7 +22,7 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
     setLoading(true)
     setError(null)
     try {
-      const data = await listRecipes(spotId)
+      const data = await listRecipes(spotId, methodFilter)
       setRecipes(data)
     } catch (e) {
       setError(e.message)
@@ -22,6 +30,10 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadRecipes()
+  }, [methodFilter])
 
   const formatDate = (iso) => {
     if (!iso) return ''
@@ -70,6 +82,23 @@ export default function RecipeList({ onSelectRecipe, onNewRecipe, spotId, userRo
             + Новый
           </button>
         )}
+      </div>
+
+      {/* Method filter pills */}
+      <div className="flex gap-1.5 bg-tech-surface rounded-xl border border-tech-border p-1">
+        {METHOD_FILTERS.map((f) => (
+          <button
+            key={f.key || 'all'}
+            onClick={() => setMethodFilter(f.key)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+              methodFilter === f.key
+                ? 'bg-tech-accent text-black shadow-md'
+                : 'text-tech-secondary hover:text-tech-primary'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {recipes.length === 0 ? (
